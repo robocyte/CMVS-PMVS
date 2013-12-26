@@ -1,6 +1,6 @@
+#include <fstream>
 #include <iostream>
 #include <iomanip>
-#include <fstream>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -90,17 +90,16 @@ int main(int argc, char* argv[])
         int timagenum, oimagenum;
         ske_file >> timagenum >> oimagenum;
 
-        std::vector<int> timages, oimages;
-        timages.resize(timagenum);
-        oimages.resize(oimagenum);
-        for (int i = 0; i < timagenum; ++i) ske_file >> timages[i];
-        for (int i = 0; i < oimagenum; ++i) ske_file >> oimages[i];
+        std::vector<int> timages(timagenum), oimages(oimagenum);
+        for (auto &number : timages) ske_file >> number;
+        for (auto &number : oimages) ske_file >> number;
 
         option_file << "timages " << timagenum << ' ';
-        for (int i = 0; i < timagenum; ++i) option_file << timages[i] << ' ';
+        for (const auto &number : timages) option_file << number << ' ';
         option_file << std::endl;
+
         option_file << "oimages " << oimagenum << ' ';
-        for (int i = 0; i < oimagenum; ++i) option_file << oimages[i] << ' ';
+        for (const auto &number : oimages) option_file << number << ' ';
         option_file << std::endl;
     }
 
