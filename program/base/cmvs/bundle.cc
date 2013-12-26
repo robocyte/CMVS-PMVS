@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iterator>
-#include <numeric> //PM
+#include <numeric>
+#include <thread>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -19,108 +20,107 @@ int cutType;
 int memory_saving;
 };
 
-using namespace std;
 using namespace boost;
 using namespace CMVS;
 
-Cbundle::Cbundle(void) {
-  m_CPU = 8;
-  m_junit = 100;
-  pthread_rwlock_init(&m_lock, NULL);
-  m_debug = 0;
-  m_puf = NULL;
-  m_ptree = NULL;
+Cbundle::Cbundle(void)
+{
+    m_CPU = 8;
+    m_junit = 100;
+    m_debug = 0;
+    m_puf = NULL;
+    m_ptree = NULL;
 }
 
-Cbundle::~Cbundle() {
+Cbundle::~Cbundle()
+{
 }
 
-void Cbundle::prep(const std::string prefix, const int imageThreshold,
-                   const int tau, const float scoreRatioThreshold,
-                   const float coverageThreshold,
-                   const int pnumThreshold, const int CPU) {
-  if (pnumThreshold != 0) {
-    cerr << "Should use pnumThreshold = 0" << endl;
-    exit (1);
-  }
-  
-  m_prefix = prefix;
-  m_imageThreshold = imageThreshold;
-  m_tau = tau;
-  m_scoreRatioThreshold = scoreRatioThreshold;
-  m_coverageThreshold = coverageThreshold;
-  m_pnumThreshold = pnumThreshold;
-  m_CPU = CPU;
-  
-  m_linkThreshold = 2.0f;
+void Cbundle::prep(const std::string prefix, const int imageThreshold, const int tau, const float scoreRatioThreshold, const float coverageThreshold, const int pnumThreshold, const int CPU)
+{
+    if (pnumThreshold != 0)
+    {
+        std::cerr << "Should use pnumThreshold = 0" << std::endl;
+        exit (1);
+    }
 
-  m_dscale = 1 / 100.0f;
-  m_dscale2 = 1.0f;
-  
-  char buffer[1024];
-  sprintf(buffer, "%sbundle.rd.out", prefix.c_str());
-  cerr << "Reading bundle..." << flush;
-  readBundle(buffer);
-  cerr << endl;
+    m_prefix                = prefix;
+    m_imageThreshold        = imageThreshold;
+    m_tau                   = tau;
+    m_scoreRatioThreshold   = scoreRatioThreshold;
+    m_coverageThreshold     = coverageThreshold;
+    m_pnumThreshold         = pnumThreshold;
+    m_CPU                   = CPU;
 
-  vector<int> images;
-  for (int c = 0; c < m_cnum; ++c)
-    images.push_back(c);
+    m_linkThreshold = 2.0f;
 
-  m_dlevel = 7;
-  m_maxLevel = 12;
-  m_pss.init(images, prefix, m_maxLevel + 1, 5, 0);
+    m_dscale  = 1.0f / 100.0f;
+    m_dscale2 = 1.0f;
+
+    char buffer[1024];
+    sprintf(buffer, "%sbundle.rd.out", prefix.c_str());
+    std::cerr << "Reading bundle..." << std::flush;
+    readBundle(buffer);
+    std::cerr << std::endl;
+
+    std::vector<int> images;
+    for (int c = 0; c < m_cnum; ++c) images.push_back(c);
+
+    m_dlevel   = 7;
+    m_maxLevel = 12;
+    m_pss.init(images, prefix, m_maxLevel + 1, 5, 0);
   
-  cerr << "Set widths/heights..." << flush;
-  setWidthsHeightsLevels();
-  cerr << "done" << flush;
+    std::cerr << "Set widths/heights..." << std::flush;
+    setWidthsHeightsLevels();
+    std::cerr << "done" << std::flush;
 }
 
-void Cbundle::prep2(void) {
-  // Used in mergeSfMP now.
-  {
-    m_pweights.resize((int)m_coords.size(), 1);
+void Cbundle::prep2(void)
+{
+    // Used in mergeSfMP now.
+    {
+        m_pweights.resize((int)m_coords.size(), 1);
+        m_sfms2.resize((int)m_coords.size());
+        startTimer();
+        setScoreThresholds();
+        std::cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << std::endl;
+        startTimer();
+        std::cerr << "slimNeighborsSetLinks..." << std::flush;
+        slimNeighborsSetLinks();
+        std::cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << std::endl;
+    }
+
+    // Improve visibility by using texture analysis
+    startTimer();  
+    std::cerr << "mergeSFM..." << std::flush;
+    mergeSfMP();
+    std::cerr << '\t' << curTimer()/CLOCKS_PER_SEC << " secs" << std::endl;
+
+    m_sfms2.clear();
     m_sfms2.resize((int)m_coords.size());
+    std::cerr << "setScoreThresholds..." << std::flush;
     startTimer();
     setScoreThresholds();
-    cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << endl;
+    std::cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << std::endl;
+
+    // Remove redundant images first
+    std::cerr << "sRemoveImages... " << std::flush;
     startTimer();
-    cerr << "slimNeighborsSetLinks..." << flush;
+
+    sRemoveImages();
+    std::cerr << '\t' << curTimer()/CLOCKS_PER_SEC << " secs" << std::endl;
+
+    // Use m_removed to change m_visibles and update m_neighbors
+    startTimer();
+    resetVisibles();
+    setNeighbors();
+    std::cerr << "slimNeighborsSetLinks..." << std::flush;
     slimNeighborsSetLinks();
-    cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << endl;
-  }
-  
-  // Improve visibility by using texture analysis
-  startTimer();  
-  cerr << "mergeSFM..." << flush;
-  mergeSfMP();
-  cerr << '\t' << curTimer()/CLOCKS_PER_SEC << " secs" << endl;
+    std::cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << std::endl;
 
-  m_sfms2.clear();
-  m_sfms2.resize((int)m_coords.size());
-  cerr << "setScoreThresholds..." << flush;
-  startTimer();
-  setScoreThresholds();
-  cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << endl;
-
-  // Remove redundant images first
-  cerr << "sRemoveImages... " << flush;
-  startTimer();
-
-  sRemoveImages();
-  cerr << '\t' << curTimer()/CLOCKS_PER_SEC << " secs" << endl;
-
-  // use m_removed to change m_visibles and update m_neighbors
-  startTimer();
-  resetVisibles();
-  setNeighbors();
-  cerr << "slimNeighborsSetLinks..." << flush;
-  slimNeighborsSetLinks();
-  cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << endl;
-  
-  // Init m_timages by mutually exclusive clustering
-  setTimages();
-  m_oimages.resize((int)m_timages.size());  
+    // Init m_timages by mutually exclusive clustering
+    setTimages();
+    m_oimages.resize((int)m_timages.size());  
 }
 
 void Cbundle::run(const std::string prefix, const int imageThreshold,
@@ -132,12 +132,12 @@ void Cbundle::run(const std::string prefix, const int imageThreshold,
   prep(prefix, imageThreshold, tau, scoreRatioThreshold,
        coverageThreshold, pnumThreshold, CPU);
 
-  cerr << '\t' << curTimer()/CLOCKS_PER_SEC << " secs" << endl;
+  std::cerr << '\t' << curTimer()/CLOCKS_PER_SEC << " secs" << std::endl;
 
   prep2();
   
   // Assumed variables that must be set properly here
-  cerr << "Adding images: " << endl;
+  std::cerr << "Adding images: " << std::endl;
   startTimer();
   // Add images
   // Repeat until all the clusters become at most m_imageThreshold.
@@ -145,32 +145,32 @@ void Cbundle::run(const std::string prefix, const int imageThreshold,
     addImagesP();
     
     int change = 0;
-    vector<vector<int> > newtimages;
-    cout << "Divide: " << flush;
+    std::vector<std::vector<int> > newtimages;
+    std::cout << "Divide: " << std::flush;
     for (int i = 0; i < (int)m_timages.size(); ++i) {
       if ((int)m_timages[i].size() <= m_imageThreshold) {        
         newtimages.push_back(m_timages[i]);
         continue;
       }
       else {
-        cout << i << ' ';
+        std::cout << i << ' ';
         
         change = 1;
         // divide
-        vector<vector<int> > vvi;
+        std::vector<std::vector<int> > vvi;
         divideImages(m_timages[i], vvi);
         for (int j = 0; j < (int)vvi.size(); ++j)
           newtimages.push_back(vvi[j]);
       }
     }
 
-    cout << endl;
+    std::cout << std::endl;
     
     m_timages.swap(newtimages);
     if (change == 0)
       break;
   }
-  cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << endl;
+  std::cerr << "done\t" << curTimer()/CLOCKS_PER_SEC << " secs" << std::endl;
   
   m_oimages.resize((int)m_timages.size());
 
@@ -182,7 +182,7 @@ void Cbundle::run(const std::string prefix, const int imageThreshold,
 }
 
 float Cbundle::computeLink(const int image0, const int image1) {
-  vector<int> common;
+  std::vector<int> common;
   set_intersection(m_vpoints[image0].begin(), m_vpoints[image0].end(),
                    m_vpoints[image1].begin(), m_vpoints[image1].end(),
                    back_inserter(common));
@@ -190,7 +190,7 @@ float Cbundle::computeLink(const int image0, const int image1) {
   float score = 0.0f;
   for (int i = 0; i < (int)common.size(); ++i) {
     const int pid = common[i];
-    vector<int> vtmp;
+    std::vector<int> vtmp;
     vtmp.push_back(image0);    vtmp.push_back(image1);
     const float ftmp = computeScore2(m_coords[pid], vtmp);
     if (m_sfms2[pid].m_score != 0.0f)
@@ -216,15 +216,15 @@ void Cbundle::slimNeighborsSetLinks(void) {
     if ((int)m_neighbors[image].size() < 2)
       continue;
 
-    vector<int> newneighbors;
-    vector<float> newlinks;
+    std::vector<int> newneighbors;
+    std::vector<float> newlinks;
 
-    vector<Vec2f> vv;
+    std::vector<Vec2f> vv;
     for (int i = 0; i < (int)m_neighbors[image].size(); ++i)
       vv.push_back(Vec2(-m_links[image][i], m_neighbors[image][i]));
     sort(vv.begin(), vv.end(), Svec2cmp<float>());
 
-    const int itmp = min(maxneighbor, (int)vv.size());
+    const int itmp = std::min(maxneighbor, (int)vv.size());
     for (int i = 0; i < itmp; ++i) {
       newneighbors.push_back((int)vv[i][1]);
       newlinks.push_back(-vv[i][0]);
@@ -254,7 +254,7 @@ void Cbundle::sRemoveImages(void) {
                             (1.0f - m_coverageThreshold));
   
   // Sort all the images in an increasing order of resolution
-  vector<Vec2i> vvi;
+  std::vector<Vec2i> vvi;
   for (int c = 0; c < m_cnum; ++c) {
     const int res =
       m_pss.m_photos[c].getWidth(0) * m_pss.m_photos[c].getHeight(0);
@@ -262,37 +262,37 @@ void Cbundle::sRemoveImages(void) {
   }
   sort(vvi.begin(), vvi.end(), Svec2cmp<int>());
   
-  const int tenth = max(1, m_cnum / 10);
+  const int tenth = std::max(1, m_cnum / 10);
   for (int i = 0; i < (int)vvi.size(); ++i) {
     if (i % tenth == 0)
-      cerr << '*' << flush;
+      std::cerr << '*' << std::flush;
     const int image = vvi[i][1];
     checkImage(image);
   }
-  cerr << endl;
+  std::cerr << std::endl;
     
-  cerr << "Kept: ";
+  std::cerr << "Kept: ";
   int kept = 0;
   for (int c = 0; c < m_cnum; ++c)
     if (m_removed[c] == 0) {
       ++kept;
-      cerr << c << ' ';
+      std::cerr << c << ' ';
     }
-  cerr << endl << endl;
+  std::cerr << std::endl << std::endl;
   
-  cerr << "Removed: ";
+  std::cerr << "Removed: ";
   for (int c = 0; c < m_cnum; ++c)
     if (m_removed[c]) {
-      cerr << c << ' ';
+      std::cerr << c << ' ';
     }
-  cerr << endl;
-  cerr << "sRemoveImages: " << m_cnum << " -> " << kept << flush;
+  std::cerr << std::endl;
+  std::cerr << "sRemoveImages: " << m_cnum << " -> " << kept << std::flush;
 }
 
 void Cbundle::resetVisibles(void) {
   // reset m_visibles. remove "removed images" from the list.
   for (int p = 0; p < (int)m_visibles.size(); ++p) {
-    vector<int> newimages;
+    std::vector<int> newimages;
 
     setNewImages(p, -1, newimages);
     m_visibles[p].swap(newimages);
@@ -343,7 +343,7 @@ void Cbundle::checkImage(const int image) {
       if (valid == 1 && inside == 0)
         continue;
       
-      vector<int> newimages;
+      std::vector<int> newimages;
       setNewImages(pid, image, newimages);
       const float cscore = computeScore2(m_coords[pid], newimages);
       if (cscore < m_sfms2[pid].m_scoreThreshold)
@@ -353,7 +353,7 @@ void Cbundle::checkImage(const int image) {
   
   // For each image, how many SFM points are removed if you remove
   // "image"
-  vector<int> decrements;
+  std::vector<int> decrements;
   decrements.resize(m_cnum, 0);
   
   // Look at points with m_stastT[p] = 2, to see if m_allows are still
@@ -400,7 +400,7 @@ void Cbundle::checkImage(const int image) {
           }
 
         if (contain) {
-          vector<int> newimages;
+          std::vector<int> newimages;
           setNewImages(pid, -1, newimages);
           const float cscore =
             computeScore2(m_coords[pid], newimages, m_sfms2[pid].m_uimages);
@@ -417,7 +417,7 @@ void Cbundle::setNeighbors(void) {
   m_neighbors.resize(m_cnum);
 #pragma omp parallel for
   for (int image = 0; image < m_cnum; ++image) {
-    vector<int> narray;
+    std::vector<int> narray;
     narray.resize(m_cnum, 0);
     
     for (int p = 0; p < (int)m_visibles.size(); ++p) {
@@ -436,7 +436,7 @@ void Cbundle::setNeighbors(void) {
 }
 
 void Cbundle::setTimages(void) {
-  vector<int> lhs;
+  std::vector<int> lhs;
   for (int c = 0; c < m_cnum; ++c)
     if (m_removed[c] == 0)
       lhs.push_back(c);
@@ -448,20 +448,20 @@ void Cbundle::setTimages(void) {
   else
     divideImages(lhs, m_timages);
   
-  cerr << endl << "Cluster sizes: " << endl;
+  std::cerr << std::endl << "Cluster sizes: " << std::endl;
   for (int i = 0; i < (int)m_timages.size(); ++i)
-    cerr << (int)m_timages[i].size() << ' ';
-  cerr << endl;
+    std::cerr << (int)m_timages[i].size() << ' ';
+  std::cerr << std::endl;
 }
 
 void Cbundle::divideImages(const std::vector<int>& lhs,
                            std::vector<std::vector<int> >& rhs) {
   const float iratio = 125.0f / 150.0f;
   // Candidates
-  list<vector<int> > candidates;
+  std::list<std::vector<int>> candidates;
   // initialize first cluster
-  candidates.push_back(vector<int>());
-  vector<int>& vitmp = candidates.back();
+  candidates.push_back(std::vector<int>());
+  std::vector<int>& vitmp = candidates.back();
   for (int i = 0; i < (int)lhs.size(); ++i)
     vitmp.push_back(lhs[i]);
   
@@ -469,14 +469,14 @@ void Cbundle::divideImages(const std::vector<int>& lhs,
   while (1) {
     if (candidates.empty())
       break;
-    vector<int> cand = candidates.front();
+    std::vector<int> cand = candidates.front();
     candidates.pop_front();
     if ((int)cand.size() <= m_imageThreshold * iratio) {
       rhs.push_back(cand);
       continue;
     }
     // Divide into 2 groups
-    vector<idxtype> xadj, adjncy, adjwgt, part;
+    std::vector<idxtype> xadj, adjncy, adjwgt, part;
     const int nparts = 2;
     const int cutType = 0;
     // Define graphs
@@ -489,14 +489,14 @@ void Cbundle::divideImages(const std::vector<int>& lhs,
         // Check if cand[i] and cand[j] are connected
         const int cid0 = cand[i];
         const int cid1 = cand[j];
-        vector<int>::const_iterator nite = 
+        std::vector<int>::const_iterator nite = 
           find(m_neighbors[cid0].begin(), m_neighbors[cid0].end(), cid1);
         
         if (nite != m_neighbors[cid0].end()) {
           adjncy.push_back(j);
           const int offset = nite - m_neighbors[cid0].begin();
           const int weight =
-            min(5000, (int)floor(10.0f * m_links[cid0][offset] + 0.5f));
+            std::min(5000, (int)floor(10.0f * m_links[cid0][offset] + 0.5f));
           adjwgt.push_back(weight);
         }
       }
@@ -506,7 +506,7 @@ void Cbundle::divideImages(const std::vector<int>& lhs,
     Cgraclus::runE(xadj, adjncy, adjwgt, nparts, cutType, part);
     
     // Divide into 2 groups
-    vector<int> cand1, cand2;
+    std::vector<int> cand1, cand2;
     for (int i = 0; i < (int)part.size(); ++i) {
       if (part[i] == 0)
         cand1.push_back(cand[i]);
@@ -515,23 +515,23 @@ void Cbundle::divideImages(const std::vector<int>& lhs,
     }
     
     if (cand1.empty() || cand2.empty()) {
-      cerr << "Error. Normalized cuts produced an empty cluster: "
+      std::cerr << "Error. Normalized cuts produced an empty cluster: "
            << (int)part.size() << " -> "
            << (int)cand1.size() << ' '
-           << (int)cand2.size() << endl;
+           << (int)cand2.size() << std::endl;
       exit (1);
     }
     
     if ((int)cand1.size() <= m_imageThreshold * iratio)
       rhs.push_back(cand1);
     else {
-      candidates.push_back(vector<int>());
+      candidates.push_back(std::vector<int>());
       (candidates.back()).swap(cand1);
     }
     if ((int)cand2.size() <= m_imageThreshold * iratio)
       rhs.push_back(cand2);
     else {
-      candidates.push_back(vector<int>());
+      candidates.push_back(std::vector<int>());
       (candidates.back()).swap(cand2);
     }
   }
@@ -540,9 +540,9 @@ void Cbundle::divideImages(const std::vector<int>& lhs,
 void Cbundle::readBundle(const std::string file) {
   // For each valid image, a list of connected images, and the second
   // value is the number of common points.
-  ifstream ifstr;  ifstr.open(file.c_str());
+  std::ifstream ifstr;  ifstr.open(file.c_str());
   if (!ifstr.is_open()) {
-    cerr << "Bundle file not found: " << file << endl;
+    std::cerr << "Bundle file not found: " << file << std::endl;
     exit (1);
   }
   while (1) {
@@ -557,8 +557,8 @@ void Cbundle::readBundle(const std::string file) {
   }
   int cnum, pnum;
   ifstr >> cnum >> pnum;
-  vector<int> ids;        ids.resize(cnum);
-  cerr << cnum << " cameras -- " << pnum << " points in bundle file" << endl;
+  std::vector<int> ids;        ids.resize(cnum);
+  std::cerr << cnum << " cameras -- " << pnum << " points in bundle file" << std::endl;
   m_cnum = 0;
   for (int c = 0; c < cnum; ++c) {
     ids[c] = -1;
@@ -574,17 +574,17 @@ void Cbundle::readBundle(const std::string file) {
   m_coords.clear();  m_visibles.clear();
   m_colors.clear();
   m_pnum = 0;
-  const int tenth = max(1, pnum / 10);
+  const int tenth = std::max(1, pnum / 10);
   for (int p = 0; p < pnum; ++p) {
     if (p % tenth == 0)
-      cerr << '*' << flush;
+      std::cerr << '*' << std::flush;
     int num;    Vec3f color;
     Vec4f coord;
     ifstr >> coord[0] >> coord[1] >> coord[2]
           >> color >> num;
     coord[3] = 1.0f;
     
-    vector<int> visibles;
+    std::vector<int> visibles;
     for (int i = 0; i < num; ++i) {
       int itmp;      ifstr >> itmp;
       if (cnum <= itmp) {
@@ -593,7 +593,7 @@ void Cbundle::readBundle(const std::string file) {
         continue;
       }
       if (ids[itmp] == -1) {
-        cerr << "impossible " << itmp << ' ' << ids[itmp] << endl;
+        std::cerr << "impossible " << itmp << ' ' << ids[itmp] << std::endl;
         exit (1);
       }
       visibles.push_back(ids[itmp]);
@@ -621,7 +621,7 @@ void Cbundle::readBundle(const std::string file) {
   ifstr.close();
   setNeighbors();
   
-  cerr << endl << m_cnum << " cameras -- " << m_pnum << " points" << flush;
+  std::cerr << std::endl << m_cnum << " cameras -- " << m_pnum << " points" << std::flush;
 }
 
 void Cbundle::findPNeighbors(sfcnn<const float*, 3, float>& tree,
@@ -629,9 +629,9 @@ void Cbundle::findPNeighbors(sfcnn<const float*, 3, float>& tree,
   const float thresh = m_dscale2 * m_dscale2 *
     m_minScales[pid] * m_minScales[pid];
 
-  vector<long unsigned int> ids;
-  vector<double> dists;
-  int k = min((int)m_coords.size(), 400);
+  std::vector<long unsigned int> ids;
+  std::vector<double> dists;
+  int k = std::min((int)m_coords.size(), 400);
 
   while (1) {
     ids.clear();
@@ -643,7 +643,7 @@ void Cbundle::findPNeighbors(sfcnn<const float*, 3, float>& tree,
     if (k == (int)m_coords.size())
       break;
     
-    k = min((int)m_coords.size(), k * 2);
+    k = std::min((int)m_coords.size(), k * 2);
   }
 
   for (int i = 0; i < k; ++i) {
@@ -665,7 +665,7 @@ void Cbundle::mergeSfMPThread(void) {
   const int tenth = (int)m_coords.size() / 10;
   while (1) {
     int pid = -1;
-    pthread_rwlock_wrlock(&m_lock);
+    m_lock.lock();
     if (!m_jobs.empty()) {
       pid = m_jobs.front();
       m_jobs.pop_front();
@@ -673,21 +673,21 @@ void Cbundle::mergeSfMPThread(void) {
     if (pid != -1 && m_merged[pid])
       pid = -2;
     if (m_count % tenth == 0)
-      cerr << '*' << flush;
+      std::cerr << '*' << std::flush;
     ++m_count;
-    pthread_rwlock_unlock(&m_lock);
+    m_lock.unlock();
     if (pid == -2)
       continue;
     if (pid == -1)
       break;
 
     // Process, and check later if merged flag is on
-    vector<int> pneighbors;
+    std::vector<int> pneighbors;
     findPNeighbors(*m_ptree, pid, pneighbors);
     const int psize = (int)pneighbors.size();
     // visible images and its neighbors
-    vector<int> visibles = m_visibles[pid];
-    vector<int> vitmp;
+    std::vector<int> visibles = m_visibles[pid];
+    std::vector<int> vitmp;
     for (int i = 0; i < (int)m_visibles[pid].size(); ++i) {
       const int imagetmp = m_visibles[pid][i];
       vitmp.clear();
@@ -695,7 +695,7 @@ void Cbundle::mergeSfMPThread(void) {
       vitmp.swap(visibles);
     }
     
-    vector<char> visflag(psize, 0);
+    std::vector<char> visflag(psize, 0);
     // test visibility
     for (int i = 0; i < psize; ++i) {
       const int& pid2 = pneighbors[i];
@@ -704,7 +704,7 @@ void Cbundle::mergeSfMPThread(void) {
     }
     
     // Now lock and try to register
-    pthread_rwlock_wrlock(&m_lock);
+    m_lock.lock();
     // If the main one is removed, over... waste.
     if (m_merged[pid] == 0) {
       m_merged[pid] = 1;
@@ -716,13 +716,14 @@ void Cbundle::mergeSfMPThread(void) {
         }
       }
     }
-    pthread_rwlock_unlock(&m_lock);
+    m_lock.unlock();
   }
 }
 
-void* Cbundle::mergeSfMPThreadTmp(void* arg) {
-  ((Cbundle*)arg)->mergeSfMPThread();
-  return NULL;
+void* Cbundle::mergeSfMPThreadTmp(void* arg)
+{
+    ((Cbundle*)arg)->mergeSfMPThread();
+    return nullptr;
 }
 
 void Cbundle::mergeSfMP(void) {
@@ -735,7 +736,7 @@ void Cbundle::mergeSfMP(void) {
       const int image = m_visibles[p][i];
       const float stmp =
         m_pss.m_photos[image].getScale(m_coords[p], m_levels[image]);
-      m_minScales[p] = min(m_minScales[p], stmp);
+      m_minScales[p] = std::min(m_minScales[p], stmp);
     }
   }
   
@@ -745,36 +746,33 @@ void Cbundle::mergeSfMP(void) {
 
   {
     // kdtree
-    vector<const float*> ppoints;
+    std::vector<const float*> ppoints;
     ppoints.resize((int)m_coords.size());
     for (int i = 0; i < (int)m_coords.size(); ++i)
       ppoints[i] = &(m_coords[i][0]);
     m_ptree =
       new sfcnn<const float*, 3, float>(&ppoints[0], (int)ppoints.size());
-    
+
     m_merged.resize((int)m_coords.size(), 0);
     m_jobs.clear();
-    vector<int> order;
+    std::vector<int> order;
     order.resize(cpnum);
     for (int p = 0; p < cpnum; ++p)
       order[p] = p;
     random_shuffle(order.begin(), order.end());
-    
+
     for (int p = 0; p < cpnum; ++p)
       m_jobs.push_back(order[p]);
-    
+
     m_count = 0;
-    vector<pthread_t> threads(m_CPU);
-    for (int c = 0; c < m_CPU; ++c)
-      pthread_create(&threads[c], NULL,
-                     mergeSfMPThreadTmp, (void*)this);
-    for (int c = 0; c < m_CPU; ++c)
-      pthread_join(threads[c], NULL);
+    std::vector<std::thread> threads(m_CPU);
+    for (auto& t : threads) t = std::thread(mergeSfMPThreadTmp, this);
+    for (auto& t : threads) t.join();
 
     int newpnum = 0;
     // Mapping from m_pnum to new id for reps
-    vector<int> dict;
-    vector<int> reps;
+    std::vector<int> dict;
+    std::vector<int> reps;
     dict.resize((int)m_coords.size(), -1);
     for (int p = 0; p < (int)m_coords.size(); ++p) {
       const int ptmp = m_puf->find_set(p);
@@ -787,9 +785,9 @@ void Cbundle::mergeSfMP(void) {
   }
   
   // Based on m_puf, reset m_coords, m_coords, m_visibles, m_vpoints
-  cerr << "resetPoints..." << flush;
+  std::cerr << "resetPoints..." << std::flush;
   resetPoints();
-  cerr << "done" << endl;
+  std::cerr << "done" << std::endl;
 
   delete m_puf;
   m_puf = NULL;
@@ -797,35 +795,35 @@ void Cbundle::mergeSfMP(void) {
   m_ptree = NULL;
    
   const int npnum = (int)m_coords.size();
-  cerr << "Rep counts: " << cpnum << " -> " << npnum << "  " << flush;
+  std::cerr << "Rep counts: " << cpnum << " -> " << npnum << "  " << std::flush;
 }
 
 // Based on m_puf, reset m_coords, m_coords, m_visibles, m_vpoints
 void Cbundle::resetPoints(void) {
-  vector<int> counts;
-  vector<int> smallestids;
+  std::vector<int> counts;
+  std::vector<int> smallestids;
   counts.resize((int)m_coords.size(), 0);
   smallestids.resize((int)m_coords.size(), INT_MAX/2);
   for (int p = 0; p < (int)m_coords.size(); ++p) {
     const int ptmp = m_puf->find_set(p);
-    smallestids[ptmp] = min(smallestids[ptmp], p);
+    smallestids[ptmp] = std::min(smallestids[ptmp], p);
     ++counts[ptmp];
   }
   const int mthreshold = 2;
-  vector<Vec2i> vv2;
+  std::vector<Vec2i> vv2;
   for (int p = 0; p < (int)m_coords.size(); ++p)
     if (mthreshold <= counts[p])
       vv2.push_back(Vec2i(smallestids[p], p));
   sort(vv2.begin(), vv2.end(), Svec2cmp<int>());
   
-  vector<int> newpids;
+  std::vector<int> newpids;
   newpids.resize((int)m_coords.size(), -1);
   int newpnum = (int)vv2.size();
   for (int i = 0; i < newpnum; ++i)
     newpids[vv2[i][1]] = i;
   
-  vector<Vec4f> newcoords;  newcoords.resize(newpnum);
-  vector<vector<int> > newvisibles;  newvisibles.resize(newpnum);
+  std::vector<Vec4f> newcoords;  newcoords.resize(newpnum);
+  std::vector<std::vector<int> > newvisibles;  newvisibles.resize(newpnum);
 
   for (int p = 0; p < (int)m_coords.size(); ++p) {
     const int ptmp = m_puf->find_set(p);
@@ -834,7 +832,7 @@ void Cbundle::resetPoints(void) {
     
     const int newpid = newpids[ptmp];
     newcoords[newpid] += m_coords[p];
-    vector<int> vitmp;
+    std::vector<int> vitmp;
     mymerge(newvisibles[newpid], m_visibles[p], vitmp);
     vitmp.swap(newvisibles[newpid]);
   }  
@@ -879,7 +877,7 @@ void Cbundle::setCluster(const int p) {
   m_sfms2[p].m_cluster = -1;
   for (int c = 0; c < (int)m_timages.size(); ++c) {
     // Select images in cluster
-    vector<int> vitmp;
+    std::vector<int> vitmp;
     set_intersection(m_timages[c].begin(), m_timages[c].end(),
                      m_visibles[p].begin(), m_visibles[p].end(),
                      back_inserter(vitmp));
@@ -908,9 +906,9 @@ void Cbundle::setCluster(const int p) {
     }
     // If none of the visibles images are
     if (find == 0) {
-      cerr << "Impossible in setscoresclustersthread" << endl
-           << (int)m_visibles[p].size() << endl
-           << (int)m_sfms2[p].m_satisfied << endl;
+      std::cerr << "Impossible in setscoresclustersthread" << std::endl
+           << (int)m_visibles[p].size() << std::endl
+           << (int)m_sfms2[p].m_satisfied << std::endl;
       exit (1);
     }
   }
@@ -919,13 +917,13 @@ void Cbundle::setCluster(const int p) {
     // SATISFIED
     m_sfms2[p].m_satisfied = 1;
 
-    //  update m_lacks
-    pthread_rwlock_wrlock(&m_lock);    
+    //  update m_locks
+    m_lock.lock();
     for (int i = 0; i < (int)m_visibles[p].size(); ++i) {
       const int image = m_visibles[p][i];
       --m_lacks[image];
     }
-    pthread_rwlock_unlock(&m_lock);
+    m_lock.unlock();
   }
 }
 
@@ -936,7 +934,7 @@ float Cbundle::angleScore(const Vec4f& ray0, const Vec4f& ray1) {
   const static float rsigma2 = 2.0f * rsigma * rsigma;
   const static float pivot = 20.0f * M_PI / 180.0f;
 
-  const float angle = acos(min(1.0f, ray0 * ray1));
+  const float angle = acos(std::min(1.0f, ray0 * ray1));
   const float diff = angle - pivot;
 
   if (angle < pivot)
@@ -999,8 +997,8 @@ void Cbundle::addImagesP(void) {
   }
 
   for (int i = 0; i < (int)m_addnums.size(); ++i)
-    cerr << m_addnums[i] << ' ';
-  cerr << endl;
+    std::cerr << m_addnums[i] << ' ';
+  std::cerr << std::endl;
   
   int totalnum = 0;
   for (int c = 0; c < (int)m_timages.size(); ++c)
@@ -1010,8 +1008,8 @@ void Cbundle::addImagesP(void) {
     if (m_removed[c] == 0)
       ++beforenum;
   
-  cerr << "Image nums: "
-       << m_cnum << " -> " << beforenum <<  " -> " << totalnum << endl;
+  std::cerr << "Image nums: "
+       << m_cnum << " -> " << beforenum <<  " -> " << totalnum << std::endl;
 }
 
 int Cbundle::addImages(void) {
@@ -1019,7 +1017,7 @@ int Cbundle::addImages(void) {
   m_jobs.clear();
   
   // we think about sfm points that belong to images that have not been satisfied
-  vector<char> flags;
+  std::vector<char> flags;
   flags.resize((int)m_coords.size(), 0);
   for (int c = 0; c < m_cnum; ++c) {
     if (m_lacks[c] <= 0)
@@ -1041,7 +1039,7 @@ int Cbundle::addImages(void) {
     
     const int cluster = m_sfms2[p].m_cluster;
     // Try to add an image to m_timages[cluster]
-    vector<int> cimages;
+    std::vector<int> cimages;
     set_intersection(m_timages[cluster].begin(), m_timages[cluster].end(),
                      m_visibles[p].begin(), m_visibles[p].end(),
                      back_inserter(cimages));
@@ -1053,7 +1051,7 @@ int Cbundle::addImages(void) {
       if (binary_search(cimages.begin(), cimages.end(), image))
         continue;
       
-      vector<int> vitmp = cimages;
+      std::vector<int> vitmp = cimages;
       vitmp.push_back(image);
       const float newscore = computeScore2(m_coords[p], vitmp);
       if (newscore <= m_sfms2[p].m_score)
@@ -1067,7 +1065,7 @@ int Cbundle::addImages(void) {
   
   // Accumulate information from SfM points. For each cluster.
   // For each cluster, for each image, sum of gains.
-  vector<map<int, float> > cands;
+  std::vector<std::map<int, float> > cands;
   cands.resize((int)m_timages.size());
 
   for (int p = 0; p < (int)m_sfms2.size(); ++p) {
@@ -1088,10 +1086,10 @@ int Cbundle::addImages(void) {
 int Cbundle::addImagesSub(const std::vector<std::map<int, float> >& cands) {
   // Vec3f (gain, cluster, image). Start adding starting from the good
   // one, block neighboring images.
-  vector<Vec3f> cands2;
+  std::vector<Vec3f> cands2;
   for (int i = 0; i < (int)m_timages.size(); ++i) {
-    map<int, float>::const_iterator mbegin = cands[i].begin();
-    map<int, float>::const_iterator mend = cands[i].end();
+    auto mbegin = cands[i].begin();
+    auto mend = cands[i].end();
     
     while (mbegin != mend) {
       cands2.push_back(Vec3f(-mbegin->second, i, mbegin->first));
@@ -1104,9 +1102,9 @@ int Cbundle::addImagesSub(const std::vector<std::map<int, float> >& cands) {
 
   sort(cands2.begin(), cands2.end(), Svec3cmp<float>());
   
-  vector<char> blocked;
+  std::vector<char> blocked;
   blocked.resize(m_cnum, 0);
-  vector<int> addnum;
+  std::vector<int> addnum;
   addnum.resize((int)m_timages.size(), 0);
 
   // A bit of tuning is possible here. For the paper, we used 0.7f,
@@ -1154,11 +1152,11 @@ int Cbundle::totalNum(void) const{
 
 int Cbundle::my_isIntersect(const std::vector<int>& lhs,
                             const std::vector<int>& rhs) {
-  vector<int>::const_iterator b0 = lhs.begin();
-  vector<int>::const_iterator e0 = lhs.end();
+  std::vector<int>::const_iterator b0 = lhs.begin();
+  std::vector<int>::const_iterator e0 = lhs.end();
 
-  vector<int>::const_iterator b1 = rhs.begin();
-  vector<int>::const_iterator e1 = rhs.end();
+  std::vector<int>::const_iterator b1 = rhs.begin();
+  std::vector<int>::const_iterator e1 = rhs.end();
 
   while (1) {
     if (b0 == e0)
@@ -1179,11 +1177,11 @@ int Cbundle::my_isIntersect(const std::vector<int>& lhs,
 void Cbundle::mymerge(const std::vector<int>& lhs,
                       const std::vector<int>& rhs,
                       std::vector<int>& output) {
-  vector<int>::const_iterator b0 = lhs.begin();
-  vector<int>::const_iterator e0 = lhs.end();
+  std::vector<int>::const_iterator b0 = lhs.begin();
+  std::vector<int>::const_iterator e0 = lhs.end();
 
-  vector<int>::const_iterator b1 = rhs.begin();
-  vector<int>::const_iterator e1 = rhs.end();
+  std::vector<int>::const_iterator b1 = rhs.begin();
+  std::vector<int>::const_iterator e1 = rhs.end();
 
   while (1) {
     if (b0 == e0) {
@@ -1236,7 +1234,7 @@ void Cbundle::setWidthsHeightsLevels(void) {
  
 float Cbundle::computeScore2(const Vec4f& coord,
                              const std::vector<int>& images) const {
-  vector<int> uimages;
+  std::vector<int> uimages;
   return computeScore2(coord, images, uimages);
 }
 
@@ -1248,8 +1246,8 @@ float Cbundle::computeScore2(const Vec4f& coord,
   if (inum < 2)
     return -1.0f;
   
-  vector<Vec4f> rays;    rays.resize(inum);
-  vector<float> scales;  scales.resize(inum);
+  std::vector<Vec4f> rays;    rays.resize(inum);
+  std::vector<float> scales;  scales.resize(inum);
   
   for (int r = 0; r < inum; ++r) {
     rays[r] = m_pss.m_photos[images[r]].m_center - coord;
@@ -1271,11 +1269,11 @@ float Cbundle::computeScore2(const Vec4f& coord,
       }
     }
 
-  vector<int> inout;  inout.resize(inum, 1);
+  std::vector<int> inout;  inout.resize(inum, 1);
   inout[bestpair[0]] = 0;         inout[bestpair[1]] = 0;
   uimages.push_back(bestpair[0]);   uimages.push_back(bestpair[1]);
 
-  for (int t = 2; t < min(m_tau, inum); ++t) {
+  for (int t = 2; t < std::min(m_tau, inum); ++t) {
     // Add the best new image
     int ansid = -1;
     float ansscore = -INT_MAX/2;
@@ -1295,7 +1293,7 @@ float Cbundle::computeScore2(const Vec4f& coord,
     }
     
     if (ansid == -1) {
-      cerr << "Impossible 2 in compureScore" << endl;      exit (1);
+      std::cerr << "Impossible 2 in compureScore" << std::endl;      exit (1);
     }
     
     inout[ansid] = 0;
@@ -1312,13 +1310,13 @@ float Cbundle::computeScore2(const Vec4f& coord,
 float Cbundle::computeScore2(const Vec4f& coord,
                              const std::vector<int>& images,
                              const int index) const {
-  vector<int> uimages;
+  std::vector<int> uimages;
   const int inum = (int)images.size();
   if (inum < 2)
     return -1.0f;
   
-  vector<Vec4f> rays;    rays.resize(inum);
-  vector<float> scales;  scales.resize(inum);
+  std::vector<Vec4f> rays;    rays.resize(inum);
+  std::vector<float> scales;  scales.resize(inum);
   
   for (int r = 0; r < inum; ++r) {
     rays[r] = m_pss.m_photos[images[r]].m_center - coord;
@@ -1328,11 +1326,11 @@ float Cbundle::computeScore2(const Vec4f& coord,
   }
 
   float bestscore = 0.0f;
-  vector<int> inout;  inout.resize(inum, 1);
+  std::vector<int> inout;  inout.resize(inum, 1);
   inout[index] = 0;
   uimages.push_back(index);
 
-  for (int t = 1; t < min(m_tau, inum); ++t) {
+  for (int t = 1; t < std::min(m_tau, inum); ++t) {
     // Add the best new image
     int ansid = -1;
     float ansscore = -INT_MAX/2;
@@ -1352,7 +1350,7 @@ float Cbundle::computeScore2(const Vec4f& coord,
     }
     
     if (ansid == -1) {
-      cerr << "Impossible 2 in compureScore" << endl;      exit (1);
+      std::cerr << "Impossible 2 in compureScore" << std::endl;      exit (1);
     }
     
     inout[ansid] = 0;
@@ -1363,25 +1361,25 @@ float Cbundle::computeScore2(const Vec4f& coord,
 }
 
 void Cbundle::writeVis(void) {
-  ofstream ofstr;
+  std::ofstream ofstr;
   char buffer[1024];
   sprintf(buffer, "%svis.dat", m_prefix.c_str());
   
   ofstr.open(buffer);
-  ofstr << "VISDATA" << endl;
-  ofstr << m_cnum << endl;
+  ofstr << "VISDATA" << std::endl;
+  ofstr << m_cnum << std::endl;
 
   int numer = 0;
   int denom = 0;
   
   for (int c = 0; c < m_cnum; ++c) {
     if (m_removed[c])
-      ofstr << c << ' ' << 0 << endl;
+      ofstr << c << ' ' << 0 << std::endl;
     else {
       ofstr << c << ' ' << (int)m_neighbors[c].size() << "  ";
       for (int i = 0; i < (int)m_neighbors[c].size(); ++i)
         ofstr << m_neighbors[c][i] << ' ';
-      ofstr << endl;
+      ofstr << std::endl;
 
       numer += (int)m_neighbors[c].size();
       ++denom;
@@ -1390,7 +1388,7 @@ void Cbundle::writeVis(void) {
   ofstr.close();
 
 
-  cerr << numer / (float)denom << " images in vis on the average" << endl;
+  std::cerr << numer / (float)denom << " images in vis on the average" << std::endl;
   
 }
 
@@ -1399,20 +1397,20 @@ void Cbundle::writeCameraCenters(void) {
     char buffer[1024];
     sprintf(buffer, "%scenters-%04d.ply", m_prefix.c_str(), i);
     
-    ofstream ofstr;
+    std::ofstream ofstr;
     ofstr.open(buffer);
-    ofstr << "ply" << endl
-          << "format ascii 1.0" << endl
-          << "element vertex " << (int)m_timages[i].size() << endl
-          << "property float x" << endl
-          << "property float y" << endl
-          << "property float z" << endl
-          << "end_header" << endl;
+    ofstr << "ply" << std::endl
+          << "format ascii 1.0" << std::endl
+          << "element vertex " << (int)m_timages[i].size() << std::endl
+          << "property float x" << std::endl
+          << "property float y" << std::endl
+          << "property float z" << std::endl
+          << "end_header" << std::endl;
     for (int j = 0; j < (int)m_timages[i].size(); ++j) {
       const int c = m_timages[i][j];
       ofstr << m_pss.m_photos[c].m_center[0] << ' '
             << m_pss.m_photos[c].m_center[1] << ' '
-            << m_pss.m_photos[c].m_center[2] << endl;
+            << m_pss.m_photos[c].m_center[2] << std::endl;
     }
     ofstr.close();
   }
@@ -1420,28 +1418,28 @@ void Cbundle::writeCameraCenters(void) {
   {
     char buffer[1024];
     sprintf(buffer, "%scenters-all.ply", m_prefix.c_str());
-    ofstream ofstr;
+    std::ofstream ofstr;
     ofstr.open(buffer);
     
-    ofstr << "ply" << endl
-          << "format ascii 1.0" << endl
-          << "element vertex " << m_cnum << endl
-          << "property float x" << endl
-          << "property float y" << endl
-          << "property float z" << endl
-          << "property uchar diffuse_red" << endl
-          << "property uchar diffuse_green" << endl
-          << "property uchar diffuse_blue" << endl
-          << "end_header" << endl;
+    ofstr << "ply" << std::endl
+          << "format ascii 1.0" << std::endl
+          << "element vertex " << m_cnum << std::endl
+          << "property float x" << std::endl
+          << "property float y" << std::endl
+          << "property float z" << std::endl
+          << "property uchar diffuse_red" << std::endl
+          << "property uchar diffuse_green" << std::endl
+          << "property uchar diffuse_blue" << std::endl
+          << "end_header" << std::endl;
     for (int c = 0; c < m_cnum; ++c) {
       ofstr << m_pss.m_photos[c].m_center[0] << ' '
             << m_pss.m_photos[c].m_center[1] << ' '
             << m_pss.m_photos[c].m_center[2] << ' ';
       
       if (m_removed[c])
-        ofstr << "0 255 0" << endl;
+        ofstr << "0 255 0" << std::endl;
       else
-        ofstr << "255 0 255" << endl;
+        ofstr << "255 0 255" << std::endl;
     }
     ofstr.close();
   }
@@ -1450,20 +1448,20 @@ void Cbundle::writeCameraCenters(void) {
 void Cbundle::writeGroups(void) {
   char buffer[1024];
   sprintf(buffer, "%sske.dat", m_prefix.c_str());
-  ofstream ofstr;
+  std::ofstream ofstr;
   ofstr.open(buffer);
-  ofstr << "SKE" << endl
-        << m_cnum << ' ' << (int)m_timages.size() << endl;
+  ofstr << "SKE" << std::endl
+        << m_cnum << ' ' << (int)m_timages.size() << std::endl;
   
   for (int c = 0; c < (int)m_timages.size(); ++c) {
-    ofstr << (int)m_timages[c].size() << ' ' << (int)m_oimages[c].size() << endl;
+    ofstr << (int)m_timages[c].size() << ' ' << (int)m_oimages[c].size() << std::endl;
 
     for (int i = 0; i < (int)m_timages[c].size(); ++i)
       ofstr << m_timages[c][i] << ' ';
-    ofstr << endl;
+    ofstr << std::endl;
     for (int i = 0; i < (int)m_oimages[c].size(); ++i)
       ofstr << m_oimages[c][i] << ' ';
-    ofstr << endl;
+    ofstr << std::endl;
   }
 }
 

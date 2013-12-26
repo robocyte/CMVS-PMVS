@@ -233,31 +233,6 @@ inline TMat3<T> transpose(const TMat3<T>& m)
 template <class T>
 inline TMat3<T> row_extend(const TVec3<T>& v) { return TMat3<T>(v, v, v); };
 
-/*
-template <class T>
-inline TMat3<T> rodrigues(TVec3<T> axis, const T theta) {
-  TMat3<T> matrix;
-  const T cost = cos(theta);
-  const T sint = sin(theta);
-  const T cost2 = 1 - cost;
-  const T& wx = axis[0];  const T& wy = axis[1];  const T& wz = axis[2];
-  
-  matrix[0][0] = cost + wx * wx * cost2;
-  matrix[0][1] = wx * wy * cost2 - wz * sint;
-  matrix[0][2] = wy * sint + wx * wz * cost2;
-
-  matrix[1][0] = wz * sint + wx * wy * cost2;
-  matrix[1][1] = cost + wy * wy * cost2;
-  matrix[1][2] = -wx * sint + wy * wz * cost2;
-
-  matrix[2][0] = -wy * sint + wx * wz * cost2;
-  matrix[2][1] = wx * sint + wy * wz * cost2;
-  matrix[2][2] = cost + wz * wz * cost2;
-
-  return matrix;
-};
-*/
-
 template <class T>
 inline TMat3<T> rodrigues(const TVec3<T>& axis) {
   const T theta = norm(axis);
@@ -293,11 +268,6 @@ inline TVec3<T> irodrigues(const TMat3<T>& rot) {
                rot[1][0] - rot[0][1]);
 
   return theta / denom * vec;
-  /*
-  vec = theta / denom * vec;
-  const T len = norm(vec);
-  const int inum = (int)floor(len / (2 * M_PI));
-  */
 };
 
 typedef TMat3<double> Mat3;

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <list>
 #include <fstream>
 #include "../numeric/mat4.h"

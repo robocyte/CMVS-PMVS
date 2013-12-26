@@ -1,9 +1,11 @@
 #ifndef IMAGE_CAMERA_H
 #define IMAGE_CAMERA_H
 
+#include <algorithm>
 #include <vector>
 #include <string>
 #include <climits>
+
 #include "../numeric/vec4.h"
 #include "../numeric/mat4.h"
 #include "../numeric/mat3.h"
@@ -127,8 +129,8 @@ template<class T>
 float computeEPD(const TMat3<T>& F, const TVec3<T>& p0, const TVec3<T>& p1) {
   TVec3<T> line = F * p1;
   const T ftmp = sqrt(line[0] * line[0] + line[1] * line[1]);
-  if (ftmp == 0.0)
-    return 0.0;
+  if (ftmp == 0.0f)
+    return 0.0f;
 
   line /= ftmp;
   return fabs(line * p0);

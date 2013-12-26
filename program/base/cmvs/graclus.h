@@ -1,10 +1,10 @@
-#ifndef CMVS_GRACLUS_H
-#define CMVS_GRACLUS_H
+#pragma once
 
 #include <vector>
+
 extern "C"
 {
-	#include <metis.h>
+    #include <metis.h>
 };
 
 /*
@@ -23,48 +23,42 @@ extern "C"
  Size of adjncy is twice the number of edges.
 */
 
-namespace CMVS {
-class Cgraclus {
- public:
-  Cgraclus(void);
-  virtual ~Cgraclus();
+namespace CMVS
+{
 
-  // Threads free. no weights
-  static void run(std::vector<idxtype>& xadj,
-                  std::vector<idxtype>& adjncy,
-                  const int nparts, const int cutType,
-                  std::vector<idxtype>& part);
-  
-  // Threads free. vertex weights
-  static void runV(std::vector<idxtype>& xadj,
-                   std::vector<idxtype>& adjncy,
-                   std::vector<idxtype>& vwgt,
-                   const int nparts, const int cutType,
-                   std::vector<idxtype>& part);
-  
-  // Threads free. edge weights
-  static void runE(std::vector<idxtype>& xadj,
-                   std::vector<idxtype>& adjncy,
-                   std::vector<idxtype>& adjwgt,
-                   const int nparts, const int cutType,
-                   std::vector<idxtype>& part);
-  
-  // Threads free. vertex and edge weights
-  static void runVE(std::vector<idxtype>& xadj,
-                    std::vector<idxtype>& adjncy,
-                    std::vector<idxtype>& vwgt,
-                    std::vector<idxtype>& adjwgt,
+class Cgraclus
+{
+public:
+    Cgraclus() = default;
+
+    virtual ~Cgraclus() = default;
+
+    // Threads free. no weights
+    static void run(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
                     const int nparts, const int cutType,
                     std::vector<idxtype>& part);
-  
- protected:
-  static int mylog2(int a);
 
-  static void runSub(GraphType& graph, int nparts, int cutType,
-                     int wgtflag, std::vector<idxtype>& part);
-  
-  static void initGraph(GraphType& graph);
-};
+    // Threads free. vertex weights
+    static void runV(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
+                    std::vector<idxtype>& vwgt, const int nparts, const int cutType,
+                    std::vector<idxtype>& part);
+
+    // Threads free. edge weights
+    static void runE(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
+                    std::vector<idxtype>& adjwgt, const int nparts, const int cutType,
+                    std::vector<idxtype>& part);
+
+    // Threads free. vertex and edge weights
+    static void runVE(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
+                    std::vector<idxtype>& vwgt, std::vector<idxtype>& adjwgt, const int nparts, const int cutType,
+                    std::vector<idxtype>& part);
+
+protected:
+    static int mylog2(int a);
+
+    static void runSub(GraphType& graph, int nparts, int cutType, int wgtflag, std::vector<idxtype>& part);
+
+    static void initGraph(GraphType& graph);
 };
 
-#endif // CMVS_GRACLUS_H
+};
