@@ -10,19 +10,19 @@
 
 /* Define to 1 if you have the declaration of `acosh', and to 0 if you don't.
    */
-#define HAVE_DECL_ACOSH 0
+#define HAVE_DECL_ACOSH 1
 
 /* Define to 1 if you have the declaration of `asinh', and to 0 if you don't.
    */
-#define HAVE_DECL_ASINH 0
+#define HAVE_DECL_ASINH 1
 
 /* Define to 1 if you have the declaration of `atanh', and to 0 if you don't.
    */
-#define HAVE_DECL_ATANH 0
+#define HAVE_DECL_ATANH 1
 
 /* Define to 1 if you have the declaration of `expm1', and to 0 if you don't.
    */
-#define HAVE_DECL_EXPM1 0
+#define HAVE_DECL_EXPM1 1
 
 /* Define to 1 if you have the declaration of `feenableexcept', and to 0 if
    you don't. */
@@ -50,11 +50,11 @@
 
 /* Define to 1 if you have the declaration of `isinf', and to 0 if you don't.
    */
-#define HAVE_DECL_ISINF 0
+#define HAVE_DECL_ISINF 1
 
 /* Define to 1 if you have the declaration of `isnan', and to 0 if you don't.
    */
-#define HAVE_DECL_ISNAN 0
+#define HAVE_DECL_ISNAN 1
 
 /* Define to 1 if you have the declaration of `ldexp', and to 0 if you don't.
    */
@@ -62,7 +62,7 @@
 
 /* Define to 1 if you have the declaration of `log1p', and to 0 if you don't.
    */
-#define HAVE_DECL_LOG1P 0
+#define HAVE_DECL_LOG1P 1
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H

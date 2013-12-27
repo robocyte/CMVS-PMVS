@@ -1,5 +1,6 @@
-#include "point.h"
 #include <iostream>
+
+#include "point.h"
 
 using namespace PMVS3;
 
