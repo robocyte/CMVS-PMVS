@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
              << "You should choose maximage based on the amount of memory in your machine." << endl
              << "CPU should be the number of (virtual) CPUs or cores in your machine." << endl
              << "If you want more control of the program, look into the comments inside program/main/cmvs.cc" << endl;
-    exit (1);
+        exit (1);
     }
 
     int maximage = 100;

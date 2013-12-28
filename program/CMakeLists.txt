@@ -8,12 +8,19 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 PROJECT(CMVS-PMVS2 C CXX)
 
-IF(WIN32)
+# Options
+# Multithreading using OpenMP
+OPTION(OPENMP "Enable OpenMP)" ON)
 
+IF (MSVC)
+  OPTION(MSVC_USE_STATIC_CRT
+    "MS Visual Studio: Link to static C-Run Time Library." ON)
+ENDIF (MSVC)
+
+IF(WIN32)
   SET(ADDITIONAL_WIN_INCLUDES 
         ./thirdParty/miniBoost
         ./thirdParty/jpeg)
-
 ENDIF(WIN32)
 
 INCLUDE_DIRECTORIES(
@@ -23,10 +30,10 @@ INCLUDE_DIRECTORIES(
 
   ./thirdParty/
   ./thirdParty/gsl-1.13/include
-  # http://eris.liralab.it/iCub/downloads/packages/windows/msvc9/
   ./thirdParty/graclus1.2/metisLib
   ./thirdParty/lmfit-3.2/lib
   ${ADDITIONAL_WIN_INCLUDES}
+  ${EIGEN_INCLUDE_DIRS}
 )
 
 
@@ -37,6 +44,7 @@ ELSE(WIN32)
 
   FIND_LIBRARY(GSL_LIB NAMES gsl)
   FIND_LIBRARY(GSLCBLAS_LIB NAMES gslcblas)
+  FIND_PACKAGE(Eigen REQUIRED)
   FIND_PACKAGE(JPEG REQUIRED)
   FIND_PACKAGE(BLAS REQUIRED)
   FIND_PACKAGE(Threads REQUIRED)
@@ -49,6 +57,32 @@ ELSE(WIN32)
     ${CMAKE_THREAD_LIBS_INIT})
 
 ENDIF (WIN32)
+
+IF (OPENMP)
+    FIND_PACKAGE(OpenMP QUIET)
+    IF (OPENMP_FOUND)
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    ENDIF (OPENMP_FOUND)
+ENDIF (OPENMP)
+
+IF (MSVC)
+  # Disable warning about the insecurity of using "std::copy".
+  ADD_DEFINITIONS("/wd4996")
+
+  FOREACH(FLAG_VAR ${C_CXX_FLAGS})
+    IF (MSVC_USE_STATIC_CRT)
+      # Use static CRT.
+      IF (${FLAG_VAR} MATCHES "/MD")
+        STRING(REGEX REPLACE "/MD" "/MT" ${FLAG_VAR} "${${FLAG_VAR}}")
+      ENDIF (${FLAG_VAR} MATCHES "/MD")
+    ELSE (MSVC_USE_STATIC_CRT)
+      # Use shared, not static, CRT.
+      IF (${FLAG_VAR} MATCHES "/MT")
+        STRING(REGEX REPLACE "/MT" "/MD" ${FLAG_VAR} "${${FLAG_VAR}}")
+      ENDIF (${FLAG_VAR} MATCHES "/MT")
+    ENDIF (MSVC_USE_STATIC_CRT)
+  ENDFOREACH()
+ENDIF (MSVC)
 
 ADD_SUBDIRECTORY(base)
 ADD_SUBDIRECTORY(main)
