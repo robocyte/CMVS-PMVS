@@ -4,12 +4,6 @@
 
 using namespace PMVS3;
 
-Cpoint::Cpoint(void)
-{
-    m_response = -1.0;
-    m_type = -1;
-}
-
 Cpoint::~Cpoint()
 {
 }

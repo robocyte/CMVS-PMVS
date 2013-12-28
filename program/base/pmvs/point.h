@@ -9,14 +9,14 @@ namespace PMVS3
 class Cpoint
 {
 public:
-    Cpoint(void);
+    Cpoint() = default;
     virtual ~Cpoint();
 
     Vec3f m_icoord;
     Vec4f m_coord;      // 3D coordinate
-    float m_response;
+    float m_response = -1.0f;
 
-    int m_type;         // 0: Harris, 1: DoG
+    int m_type = 1;     // 0: Harris, 1: DoG
     int m_itmp;         // Temporary variable, used to store original imageid in initial match
 
     bool operator < (const Cpoint& rhs) const { return m_response < rhs.m_response; }

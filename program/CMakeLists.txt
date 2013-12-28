@@ -12,7 +12,6 @@ IF(WIN32)
 
   SET(ADDITIONAL_WIN_INCLUDES 
         ./thirdParty/miniBoost
-        ./thirdParty/pthread/include
         ./thirdParty/jpeg)
 
 ENDIF(WIN32)
@@ -30,21 +29,12 @@ INCLUDE_DIRECTORIES(
   ${ADDITIONAL_WIN_INCLUDES}
 )
 
-#if you build on win64 you have to set to true the following variable
-SET(WIN64_PTHREAD false)
 
 IF(WIN32)
 
-  IF(WIN64_PTHREAD)
-    SET(PTHREAD_LIB ${CMAKE_SOURCE_DIR}/thirdParty/pthreadVC2.lib)
-  ELSE(WIN64_PTHREAD)
-    SET(PTHREAD_LIB ${CMAKE_SOURCE_DIR}/thirdParty/pthread.lib)
-  ENDIF(WIN64_PTHREAD)
-  SET(PRECOMPILED_LIBS ${PTHREAD_LIB})
 
 ELSE(WIN32)
 
-  FIND_LIBRARY(LAPACK_LIB NAMES lapack)
   FIND_LIBRARY(GSL_LIB NAMES gsl)
   FIND_LIBRARY(GSLCBLAS_LIB NAMES gslcblas)
   FIND_PACKAGE(JPEG REQUIRED)
@@ -53,7 +43,6 @@ ELSE(WIN32)
   FIND_PACKAGE(Boost REQUIRED)
   SET(PRECOMPILED_LIBS
     ${JPEG_LIBRARY}
-    ${LAPACK_LIB}
     ${GSL_LIB}
     ${GSLCBLAS_LIB}
     ${BLAS_LIBRARIES}

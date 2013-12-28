@@ -3,7 +3,8 @@
 #include <time.h>
 #include <thread>
 
-#include "../numeric/mylapack.h"
+#include "Eigen/Dense"
+
 #include "findMatch.h"
 #include "filter.h"
 
@@ -415,42 +416,40 @@ void Cfilter::filterNeighborThread(void)
 
 int Cfilter::filterQuad(const Patch::Cpatch& patch, const std::vector<Ppatch>& neighbors) const
 {
-    std::vector<std::vector<float> > A;
-    std::vector<float> b, x;
+    const int nsize = (int)neighbors.size();
+
+    Eigen::MatrixXf A(nsize, 5);
+    Eigen::VectorXf b(nsize);
+    Eigen::VectorXf x(nsize);
 
     Vec4f xdir, ydir;
     ortho(patch.m_normal, xdir, ydir);
-
-    const int nsize = (int)neighbors.size();
 
     float h = 0.0f;
     for (int n = 0; n < nsize; ++n) h += norm(neighbors[n]->m_coord - patch.m_coord);
     h /= nsize;
 
-    A.resize(nsize);
-    b.resize(nsize);
-
     std::vector<float> fxs, fys, fzs;
     fxs.resize(nsize);
     fys.resize(nsize);
     fzs.resize(nsize);
+
     for (int n = 0; n < nsize; ++n)
     {
-        A[n].resize(5);
         Vec4f diff = neighbors[n]->m_coord - patch.m_coord;
         fxs[n] = diff * xdir / h;
         fys[n] = diff * ydir / h;
         fzs[n] = diff * patch.m_normal;
 
-        A[n][0] = fxs[n] * fxs[n];
-        A[n][1] = fys[n] * fys[n];
-        A[n][2] = fxs[n] * fys[n];
-        A[n][3] = fxs[n];
-        A[n][4] = fys[n];
-        b[n] = fzs[n];
+        A(n, 0) = fxs[n] * fxs[n];
+        A(n, 1) = fys[n] * fys[n];
+        A(n, 2) = fxs[n] * fys[n];
+        A(n, 3) = fxs[n];
+        A(n, 4) = fys[n];
+        b[n]    = fzs[n];
     }
-    x.resize(5);
-    Cmylapack::lls(A, b, x);
+
+    x = A.colPivHouseholderQr().solve(b);
 
     // Compute residual divided by m_dscale
     const int inum = std::min(m_fm.m_tau, (int)patch.m_images.size());
