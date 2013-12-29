@@ -30,13 +30,7 @@ public:
     inline int getMask(const Vec4f& coord, const int level) const;
     inline int getEdge(const Vec4f& coord, const int level) const;
 
-    static float idot(const std::vector<Vec3f>& tex0, const std::vector<Vec3f>& tex1);
-
-    static void idotC(const std::vector<Vec3f>& tex0, const std::vector<Vec3f>& tex1, double* idc);
-
     static void normalize(std::vector<Vec3f>& tex);
-
-    static float ssd(const std::vector<Vec3f>& tex0, const std::vector<Vec3f>& tex1);
 };
 
 Vec3f Cphoto::getColor(const float fx, const float fy, const int level) const

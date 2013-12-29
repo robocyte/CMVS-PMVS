@@ -587,7 +587,7 @@ int CpatchOrganizerS::isVisible(const Cpatch& patch, const int image, const int&
     Vec4f ray = patch.m_coord - m_fm.m_pss.m_photos[image].m_center;
     unitize(ray);
     const float diff = ray * (patch.m_coord - dppatch->m_coord);
-    const float factor = std::min(2.0, 2.0 + ray * patch.m_normal);
+    const float factor = std::min(2.0f, 2.0f + ray * patch.m_normal);
 
     if (diff < m_fm.m_optim.getUnit(image, patch.m_coord) * m_fm.m_csize * strict * factor) return 1;
     else                                                                                    return 0;
@@ -595,7 +595,7 @@ int CpatchOrganizerS::isVisible(const Cpatch& patch, const int image, const int&
 
 void CpatchOrganizerS::findNeighbors(const Patch::Cpatch& patch, std::vector<Patch::Ppatch>& neighbors, const int lock, const float scale, const int margin, const int skipvis)
 {
-    const float radius = 1.5 * margin * m_fm.m_expand.computeRadius(patch);
+    const float radius = 1.5f * margin * m_fm.m_expand.computeRadius(patch);
 
     auto bimage = patch.m_images.begin();
     auto eimage = patch.m_images.end();
@@ -792,7 +792,7 @@ void CpatchOrganizerS::writePLY(const std::vector<Ppatch>& patches, const std::s
                 denom++;
             }
 
-            colorf /= denom;
+            colorf /= static_cast<float>(denom);
             color[0] = std::min(255,(int)floor(colorf[0] + 0.5f));
             color[1] = std::min(255,(int)floor(colorf[1] + 0.5f));
             color[2] = std::min(255,(int)floor(colorf[2] + 0.5f));

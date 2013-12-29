@@ -135,30 +135,6 @@ void CphotoSetS::grabTex(const int index, const int level, const Vec4f& coord,
                           m_size, tex, weight, normalizef);
 }
 
-float CphotoSetS::incc(const std::vector<std::vector<Vec3f> >& texs,
-                       const std::vector<float>& weights) {
-  float incctmp = 0.0;
-  float denom = 0.0;
-  for (int i = 0; i < (int)weights.size(); ++i) {
-    if (texs[i].empty())
-      continue;
-    for (int j = i+1; j < (int)weights.size(); ++j) {
-      if (texs[j].empty())
-	continue;
-      
-      const float weight = weights[i] * weights[j];
-      const float ftmp = Cphoto::idot(texs[i], texs[j]);
-      incctmp += ftmp * weight;
-      denom += weight;
-    }
-  }
-  
-  if (denom == 0.0)
-    return 2.0f;
-  else
-    return incctmp / denom;
-}
-
 void CphotoSetS::getMinMaxAngles(const Vec4f& coord, const std::vector<int>& indexes,
                                  float& minAngle, float& maxAngle) const {
   minAngle = M_PI;

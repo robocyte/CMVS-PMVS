@@ -19,11 +19,13 @@ using namespace Image;
 /* max3 -- return maximum of 3 values */
 #define max3(a, b, c) ((a)>(b) ? ((a)>(c) ? (a) : (c)) : ((b)>(c) ? (b) : (c)))
 
-Cimage::Cimage(void) {
-  m_alloc = 0;
+Cimage::Cimage(void)
+{
+    m_alloc = 0;
 }
 
-Cimage::~Cimage() {
+Cimage::~Cimage()
+{
 }
 
 void Cimage::completeName(const std::string& lhs, std::string& rhs,
@@ -896,10 +898,10 @@ void Cimage::rgb2hs(const float r, const float g, const float b,
   min = min3(r, g, b);
 
   del = max - min;
-  s = (max == 0.0) ? 0.0 : del / max;
+  s = (max == 0.0f) ? 0.0f : del / max;
 
   h = -1;					/* No hue */
-  if (s != 0.0) {
+  if (s != 0.0f) {
     rc = (max - r) / del;
     gc = (max - g) / del;
     bc = (max - b) / del;
@@ -908,8 +910,8 @@ void Cimage::rgb2hs(const float r, const float g, const float b,
     else if (g == max) h = 2 + rc - bc;
     else /* if (b == max) */ h = 4 + gc - rc;
 
-    h = h * 60;
-    if (h < 0) h += 360;
+    h = h * 60.0f;
+    if (h < 0) h += 360.0f;
   }
 }
 
@@ -951,19 +953,6 @@ void Cimage::rgb2hsv(const Vec3f& rgb, float& hr, float& sr, float& vr) {
 
 void Cimage::rgb2hsv(const float r, const float g, const float b, Vec3f& hsv) {
   rgb2hsv(r, g, b, hsv[0], hsv[1], hsv[2]);
-}
-
-float Cimage::hsdis(const float h0, const float s0, const float h1, const float s1) {
-  // Represent by 2d vector each
-  const float angle0 = h0 * M_PI / 180.0;
-  Vec2f axis0(cos(angle0), sin(angle0));
-  axis0 *= s0;
-
-  const float angle1 = h1 * M_PI / 180.0;
-  Vec2f axis1(cos(angle1), sin(angle1));
-  axis1 *= s1;
-
-  return norm(axis0 - axis1) / 2.0;
 }
 
 void Cimage::gray2rgb(const float gray, float& r, float& g, float& b) {
@@ -1149,287 +1138,3 @@ void Cimage::createFilter(const float sigma, std::vector<float>& filter) {
   for (int i = 0; i < 2 * margin + 1; ++i)
     filter[i] /= sum;
 }
-
-void Cimage::sift(const Vec3f& center,
-                  const Vec3f& xaxis, const Vec3f& yaxis,
-                  std::vector<float>& descriptor) const {
-  const float step = (norm(xaxis) + norm(yaxis)) / 2.0f;
-  const int level = max(0, min(m_maxLevel - 1,
-                               (int)floor(log(step) / log(2.0f) + 0.5f)));
-
-  if (level != 0) {
-    const float scale = 0x0001 << level;
-    sift(center / scale, xaxis / scale, yaxis / scale,
-         level, descriptor);
-  }
-  else
-    sift(center, xaxis, yaxis, 0, descriptor);
-}
-
-void Cimage::sift(const Vec3f& center,
-                  const Vec3f& xaxis, const Vec3f& yaxis,
-                  const int level, std::vector<float>& descriptor) const {
-  /*
-  Mat2f A;
-  A[0][0] = xaxis[0];  A[1][0] = xaxis[1];
-  A[0][1] = yaxis[0];  A[1][1] = yaxis[1];
-  Mat2f IA;
-  invert(IA, A);
-  */
-  // bin descritization (pbin x pbin x abin)
-  const int pbin = 4;
-  const int abin = 8;
-  const float aunit = 2 * M_PI / abin;
-  // pixels in each bin
-  const int pnum = 4;
-  // max value
-  const float maxValue = 0.2f;
-
-  descriptor.clear();
-
-  const int width = pbin * pnum;
-  const int width2 = width / 2;
-
-  // Bounding box check
-  const float width205 = width2 - 0.5f;
-  const Vec3f topleft = center - width205 * yaxis - width205 * xaxis;
-  const Vec3f topright = center - width205 * yaxis + width205 * xaxis;
-  const Vec3f bottomleft = center + width205 * yaxis - width205 * xaxis;
-  const Vec3f bottomright = center + width205 * yaxis + width205 * xaxis;
-
-  const float minx = min(min(topleft[0], topright[0]),
-                         min(bottomleft[0], bottomright[0]));
-  const float maxx = max(max(topleft[0], topright[0]),
-                         max(bottomleft[0], bottomright[0]));
-  const float miny = min(min(topleft[1], topright[1]),
-                         min(bottomleft[1], bottomright[1]));
-  const float maxy = max(max(topleft[1], topright[1]),
-                         max(bottomleft[1], bottomright[1]));
-
-  if (minx < 0.0 || getWidth(level) - 1 <= maxx ||
-      miny < 0.0 || getHeight(level) - 1 <= maxy)
-    return;
-
-  descriptor.resize(pbin * pbin * abin, 0.0f);
-
-  const float sigma2 = 2 * width2 * width2;
-
-  for (int y = 0; y < width; ++y) {
-    Vec3f start = topleft + y * yaxis;
-    const int ybin = y / pnum;
-    // deviation from center
-    const float fy = y - width2 + 0.5f;
-
-    for (int x = 0; x < width; ++x) {
-      const int xbin = x / pnum;
-
-      const Vec3f px = start - xaxis;   const Vec3f nx = start + xaxis;
-      const Vec3f py = start - yaxis;   const Vec3f ny = start + yaxis;
-
-      const float dx = getColor(nx[0], nx[1], level).sum() -
-        getColor(px[0], px[1], level).sum();
-      const float dy = getColor(ny[0], ny[1], level).sum() -
-        getColor(py[0], py[1], level).sum();
-
-      float angle = atan2(dx, dy);
-      if (angle < 0.0)
-        angle += 2 * M_PI;
-      const float af = angle / aunit;   const int lf = (int)floor(af);
-      const float hfweight = af - lf;   const int hf = (lf + 1) % abin;
-      const float lfweight = 1.0f - hfweight;
-
-      // deviation from center
-      const float fx = x - width2 + 0.5f;
-      const float weight = sqrt(dx * dx + dy * dy) *
-        exp(- (fx * fx + fy * fy) / sigma2);
-
-      const int offset = (ybin * pbin + xbin) * abin;
-      descriptor[offset + lf] += lfweight * weight;
-      descriptor[offset + hf] += hfweight * weight;
-
-      start += xaxis;
-    }
-  }
-
-  // Normalize, set max to 0.2
-  float ss = 0.0f;
-  for (int i = 0; i < (int)descriptor.size(); ++i)
-    ss += descriptor[i] * descriptor[i];
-  ss = sqrt(ss);
-
-  if (ss == 0.0f)
-    return;
-
-  int change = 0;
-  for (int i = 0; i < (int)descriptor.size(); ++i) {
-    descriptor[i] /= ss;
-    if (maxValue < descriptor[i]) {
-      descriptor[i] = maxValue;
-      change = 1;
-    }
-  }
-
-  if (change) {
-    ss = 0.0f;
-    for (int i = 0; i < (int)descriptor.size(); ++i)
-      ss += descriptor[i] * descriptor[i];
-    ss = sqrt(ss);
-
-    for (int i = 0; i < (int)descriptor.size(); ++i)
-      descriptor[i] /= ss;
-  }
-}
-
-
-/*
-// If you want to use, use all the entries altogether instead of independently
-
-// Used to filter out outliers. Very general algorithm.
-// Use standard mean and deviation
-void Cimage::setInOut(const std::vector<vector<float> >& data, std::vector<int>& inout,
-		      const float sigma, const int specular) {
-  const int size = (int)data.size();
-  if (size == 0)
-    return;
-
-  inout.resize(size);
-  fill(inout.begin(), inout.end(), 0);
-
-  const int csize = (int)data[0].size();
-  if (csize == 0)
-    return;
-
-  // For each channel.
-  for (int c = 0; c < csize; ++c) {
-    float ave = 0.0;    float ave2 = 0.0;
-    for (int i = 0; i < size; ++i) {
-      ave += data[i][c];
-      ave2 += data[i][c] * data[i][c];
-    }
-    ave /= size;    ave2 /= size;
-    ave2 = sqrt(max(0.0f, ave2 - ave * ave));
-
-    const float mint = ave - sigma * ave2;
-    const float maxt = ave + sigma * ave2;
-
-    for (int i = 0; i < size; ++i) {
-      if (specular == 0) {
-	if (data[i][c] < mint || maxt < data[i][c])
-	  inout[i]++;
-      }
-      else {
-	if (maxt < data[i][c])
-	  inout[i]++;
-      }
-    }
-  }
-}
-
-// Used to filter out outliers. Very general algorithm.
-// Use mean and deviation
-void Cimage::setInOut(const std::vector<Vec3f>& data, std::vector<int>& inout,
-		      const float sigma, const int specular) {
-  const int size = (int)data.size();
-  if (size == 0)
-    return;
-
-  inout.resize(size);
-  fill(inout.begin(), inout.end(), 0);
-
-  for (int c = 0; c < 3; ++c) {
-    float ave = 0.0;    float ave2 = 0.0;
-    for (int i = 0; i < size; ++i) {
-      ave += data[i][c];
-      ave2 += data[i][c] * data[i][c];
-    }
-    ave /= size;    ave2 /= size;
-    ave2 = sqrt(max(0.0f, ave2 - ave * ave));
-
-    const float mint = ave - sigma * ave2;
-    const float maxt = ave + sigma * ave2;
-
-    for (int i = 0; i < size; ++i) {
-      if (specular == 0) {
-	if (data[i][c] < mint || maxt < data[i][c])
-	  inout[i]++;
-      }
-      else {
-	if (maxt < data[i][c])
-	  inout[i]++;
-      }
-    }
-  }
-}
-
-// Used to filter out outliers. HSV version for specular highlights.
-void Cimage::setInOutHSV(const std::vector<Vec3f>& hsvs, std::vector<int>& inout,
-			 const float sigma, const int specular) {
-  const int size = (int)hsvs.size();
-  if (size == 0)
-    return;
-
-  inout.resize(size);
-  fill(inout.begin(), inout.end(), 0);
-
-  // Because we cannot just taken an average for hue, use the angle method
-  {
-    // First find the reference index
-    vector<float> sum;    sum.resize(size);
-    fill(sum.begin(), sum.end(), 0.0);
-
-    for (int i = 0; i < size; ++i)
-      for (int j = i+1; j < size; ++j) {
-	const float ftmp = hdis(hsvs[i][0], hsvs[j][0]);
-	sum[i] += ftmp;
-	sum[j] += ftmp;
-      }
-    const int refindex = (int)(min_element(sum.begin(), sum.end()) - sum.begin());
-    float ave = 0.0;    float ave2 = 0.0;
-    const float refvalue = hsvs[refindex][0];
-    for (int i = 0; i < size; ++i) {
-      float ftmp = hsvs[i][0] - refvalue;
-      if (180.0 < ftmp)
-	ftmp -= 360.0;
-      else if (ftmp < -180.0)
-	ftmp += 360.0;
-
-      ave += ftmp;
-      ave2 += ftmp * ftmp;
-    }
-    ave /= size;    ave2 /= size;
-    ave2 = sqrt(max(0.0f, ave2 - ave * ave));
-
-    const float mint = ave - sigma * ave2;
-    const float maxt = ave + sigma * ave2;
-
-    for (int i = 0; i < size; ++i)
-      if (hsvs[i][0] < mint || maxt < hsvs[i][0])
-	inout[i]++;
-  }
-
-  // For saturation and intensity
-  for (int c = 1; c < 3; ++c) {
-    float ave = 0.0;    float ave2 = 0.0;
-    for (int i = 0; i < size; ++i) {
-      ave += hsvs[i][c];
-      ave2 += hsvs[i][c] * hsvs[i][c];
-    }
-    ave /= size;    ave2 /= size;
-    ave2 = sqrt(max(0.0f, ave2 - ave * ave));
-
-    const float mint = ave - sigma * ave2;
-    const float maxt = ave + sigma * ave2;
-
-    if (c == 2 && specular) {
-      for (int i = 0; i < size; ++i)
-	if (maxt < hsvs[i][c])
-	  inout[i]++;
-    }
-    else {
-      for (int i = 0; i < size; ++i)
-	if (hsvs[i][c] < mint || maxt < hsvs[i][c])
-	  inout[i]++;
-    }
-  }
-}
-*/

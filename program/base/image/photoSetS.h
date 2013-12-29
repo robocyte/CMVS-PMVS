@@ -48,8 +48,6 @@ public:
     inline int getEdge(const int index, const float fx, const float fy, const int level) const;
     inline int getEdge(const int index, const int ix, const int iy, const int level) const;
 
-    static float incc(const std::vector<std::vector<Vec3f>>& texs, const std::vector<float>& weights);
-
     int checkAngles(const Vec4f& coord, const std::vector<int>& indexes, const float minAngle, const float maxAngle, const int tau) const;
 
     void getMinMaxAngles(const Vec4f& coord, const std::vector<int>& indexes, float& minAngle, float& maxAngle) const;
@@ -63,8 +61,8 @@ public:
     int image2index(const int image) const;
     std::map<int, int> m_dict;
 
-    int m_num;              // Number of cameras
     std::string m_prefix;   // Root directory
+    int m_num;              // Number of cameras
     int m_maxLevel;
     int m_size;             // Window size used to refine location
 

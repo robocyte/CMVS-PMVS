@@ -4,64 +4,24 @@
 using namespace std;
 using namespace Image;
 
-Cphoto::Cphoto(void) {
+Cphoto::Cphoto(void)
+{
 }
 
-Cphoto::~Cphoto() {
+Cphoto::~Cphoto()
+{
 }
 
-void Cphoto::init(const std::string name, const std::string mname,
-		  const std::string cname, const int maxLevel) {
-  Cimage::init(name, mname, maxLevel);
-  Ccamera::init(cname, maxLevel);
+void Cphoto::init(const std::string name, const std::string mname, const std::string cname, const int maxLevel)
+{
+    Cimage::init(name, mname, maxLevel);
+    Ccamera::init(cname, maxLevel);
 }
 
-void Cphoto::init(const std::string name, const std::string mname,
-                  const std::string ename,
-		  const std::string cname, const int maxLevel) {
-  Cimage::init(name, mname, ename, maxLevel);
-  Ccamera::init(cname, maxLevel);
-}
-
-float Cphoto::ssd(const std::vector<Vec3f>& tex0,
-		  const std::vector<Vec3f>& tex1) {
-  float ans = 0.0f;
-  for (int i = 0; i < (int)tex0.size(); ++i)
-    ans += norm2(tex0[i] - tex1[i]);
-
-  // Make sure that the score is below 2.0f
-  ans /= (int)tex0.size() * (255.0 * 255.0 * 3.0);
-  
-  return ans;
-}
-
-float Cphoto::idot(const std::vector<Vec3f>& tex0,
-		   const std::vector<Vec3f>& tex1) {
-  if (tex0.empty() || tex1.empty()) {
-    cerr << "Error in idot. Empty textures" << endl;
-    exit (1);
-  }
-  float ans = 0.0;
-  for (int i = 0; i < (int)tex0.size(); ++i) {
-    ans += tex0[i] * tex1[i];
-  }
-
-  return 1.0f - ans / (3 * (int)tex0.size());
-}
-
-void Cphoto::idotC(const std::vector<Vec3f>& tex0,
-		   const std::vector<Vec3f>& tex1, double* idc) {
-  if (tex0.empty() || tex1.empty()) {
-    cerr << "Error in idotC. Empty textures" << endl;
-    exit (1);
-  }
-  idc[0] = 0.0;  idc[1] = 0.0;  idc[2] = 0.0;
-  for (int i = 0; i < (int)tex0.size(); ++i) {
-    for (int j = 0; j < 3; ++j)
-      idc[j] += tex0[i][j] * tex1[i][j];
-  }
-  for (int j = 0; j < 3; ++j)
-    idc[j] = 1.0 - idc[j] / (int)tex0.size();
+void Cphoto::init(const std::string name, const std::string mname, const std::string ename, const std::string cname, const int maxLevel)
+{
+    Cimage::init(name, mname, ename, maxLevel);
+    Ccamera::init(cname, maxLevel);
 }
 
 void Cphoto::normalize(std::vector<Vec3f>& tex) {
