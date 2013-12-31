@@ -36,8 +36,6 @@ protected:
     void setDepthMaps(void);
     void setDepthMapsVGridsVPGridsAddPatchV(const int additive);
 
-    void setConf(const int image);
-
     std::vector<float> m_gains;
 
     std::vector<std::vector<int>> m_newimages, m_removeimages;

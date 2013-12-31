@@ -489,8 +489,7 @@ void Cbundle::divideImages(const std::vector<int>& lhs,
         // Check if cand[i] and cand[j] are connected
         const int cid0 = cand[i];
         const int cid1 = cand[j];
-        std::vector<int>::const_iterator nite = 
-          find(m_neighbors[cid0].begin(), m_neighbors[cid0].end(), cid1);
+        auto nite = find(m_neighbors[cid0].begin(), m_neighbors[cid0].end(), cid1);
         
         if (nite != m_neighbors[cid0].end()) {
           adjncy.push_back(j);

@@ -44,7 +44,6 @@ protected:
 
     void sortImages(Patch::Cpatch& patch) const;
     void constraintImages(Patch::Cpatch& patch, const float nccThreshold, const int id);
-    void setRefConstraintImages(Patch::Cpatch& patch, const float nccThreshold, const int id);
 
     void setINCCs(const Patch::Cpatch& patch, std::vector<float> & nccs, const std::vector<int>& indexes, const int id, const int robust);
     void setINCCs(const Patch::Cpatch& patch, std::vector<std::vector<float>>& nccs, const std::vector<int>& indexes, const int id, const int robust);
@@ -59,7 +58,6 @@ public:
     static void normalize(std::vector<std::vector<float>>& texs, const int size);
 
     float dot(const std::vector<float>& tex0, const std::vector<float>& tex1) const;
-    float ssd(const std::vector<float>& tex0, const std::vector<float>& tex1) const;
 
     //BFGS
     static double my_f(const gsl_vector *v, void *params);

@@ -13,7 +13,7 @@ namespace Image
 class Cimage
 {
 public:
-    Cimage(void);
+    Cimage() = default;
     virtual ~Cimage();
 
     virtual void init(const std::string name, const std::string mname, const int maxLevel = 1);
@@ -99,7 +99,7 @@ protected:
     //----------------------------------------------------------------------
     // Variables updated at every alloc/free
     //----------------------------------------------------------------------  
-    int m_alloc;                                        // 0: nothing allocated; 1: width/height allocated; 2: memory allocated
+    int m_alloc = 0;                                    // 0: nothing allocated; 1: width/height allocated; 2: memory allocated
     std::vector<std::vector<unsigned char>> m_images;   // a pyramid of images
     std::vector<std::vector<unsigned char>> m_masks;    // a pyramid of masks
     std::vector<std::vector<unsigned char>> m_edges;    // a pyramid of images specifying regions with edges(texture)

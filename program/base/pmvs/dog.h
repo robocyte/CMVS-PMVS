@@ -16,7 +16,7 @@ public:
               const int width, const int height, const int gspeedup,
               const float firstScale,   // 1.4f
               const float lastScale,    // 4.0f
-              std::multiset<Cpoint> & result);
+              std::multiset<Cpoint>& result);
 
     virtual ~Cdog() { }
 

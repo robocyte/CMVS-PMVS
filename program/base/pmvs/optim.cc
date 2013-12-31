@@ -340,36 +340,6 @@ void Coptim::setRefImage(Cpatch& patch, const int id)
     }
 }
 
-// When no sampling was done, this is used
-void Coptim::setRefConstraintImages(Cpatch& patch, const float nccThreshold, const int id)
-{
-    // Set the reference image
-    std::vector<std::vector<float> > inccs;
-    setINCCs(patch, inccs, patch.m_images, id, 1);
-
-    int refindex = -1;
-    float refncc = INT_MAX/2;
-    for (int i = 0; i < (int)patch.m_images.size(); ++i)
-    {
-        const float sum = accumulate(inccs[i].begin(), inccs[i].end(), 0.0f);
-        if (sum < refncc)
-        {
-            refncc = sum;
-            refindex = i;
-        }
-    }
-
-    const float robustThreshold = robustincc(1.0f - nccThreshold);
-    std::vector<int> newimages;
-    newimages.push_back(patch.m_images[refindex]);
-    for (int i = 0; i < (int)patch.m_images.size(); ++i)
-    {
-        if (i != refindex && inccs[refindex][i] < robustThreshold) newimages.push_back(patch.m_images[i]);
-    }
-
-    patch.m_images.swap(newimages);
-}
-
 void Coptim::sortImages(Cpatch& patch) const
 {
     const int newm = 1;
@@ -812,25 +782,27 @@ bool Coptim::refinePatchBFGS2(Cpatch& patch, const int id, const int time)
     lm_status_struct status;
 
     // This function requires data >= params, so the later 3 is a fudge
-    lmmin(3, x, 3, (void *)&idtmp, my_f_lm, &control, &status, lm_printout_std);
+    std::cerr << "x before:    " << x[0] << " " << x[1] << " " << x[2] << std::endl;
+    //lmmin(3, x, 3, (void *)&idtmp, my_f_lm, &control, &status, lm_printout_std);
+    //std::cerr << "x after old: " << x[0] << " " << x[1] << " " << x[2] << std::endl;
+
+
+    Eigen::VectorXd xe(3);
+    xe << p[0], p[1], p[2];
+
+    MY_F_LM_FUNCTOR functor(this, (void *)&idtmp);
+    Eigen::DenseIndex nfev;
+    auto statuse = Eigen::LevenbergMarquardt<MY_F_LM_FUNCTOR>::lmdif1(functor, xe, &nfev, 1.0e-5);
+    std::cerr << "x after new: " << xe[0] << " " << xe[1] << " " << xe[2] << std::endl << std::endl;
 
 
 
-    //Eigen::VectorXd xe(3);
-    //xe << p[0], p[1], p[2];
-
-    //MY_F_LM_FUNCTOR functor(this, (void *)&idtmp);
-    //Eigen::DenseIndex nfev;
-    //auto statuse = Eigen::LevenbergMarquardt<MY_F_LM_FUNCTOR>::lmdif1(functor, xe, &nfev, 1.0e-5);
-
-
-
-    p[0] = x[0];
-    p[1] = x[1];
-    p[2] = x[2];
+    p[0] = xe[0];
+    p[1] = xe[1];
+    p[2] = xe[2];
 
     // Status.info 0 to 3 are "good", the rest are bad
-    if (status.info >= 0 && status.info <= 3)
+    if (statuse >= 0 && statuse <= 3)
     {
         decode(patch.m_coord, patch.m_normal, p, id);
 
@@ -1091,40 +1063,19 @@ double Coptim::computeINCC(const Vec4f& coord, const Vec4f& normal, const std::v
 
     double score = 0.0;
 
-    // pure pairwise of reference based
-#ifdef PMVS_PAIRNCC
-    float totalweight = 0.0;
-    for (int i = 0; i < size; ++i)
-    {
-        for (int j = i+1; j < size; ++j)
-        {
-            if (!texs[i].empty() && !texs[j].empty())
-            {
-                const float ftmp = m_weightsT[id][i] * m_weightsT[id][j];
-                totalweight += ftmp;
-                if (robust) score += robustincc(1.0 - dot(texs[i], texs[j])) * ftmp;
-                else        score += (1.0 - dot(texs[i], texs[j])) * ftmp;
-            }
-        }
-    }
-
-    if (totalweight == 0.0) score = 2.0;
-    else                    score /= totalweight;
-#else
     float totalweight = 0.0;
     for (int i = 1; i < size; ++i)
     {
         if (!texs[i].empty())
         {
             totalweight += m_weightsT[id][i];
-            if (robust) score += robustincc(1.0 - dot(texs[0], texs[i])) * m_weightsT[id][i];
-            else        score += (1.0 - dot(texs[0], texs[i])) * m_weightsT[id][i];
+            if (robust) score += robustincc(1.0f - dot(texs[0], texs[i])) * m_weightsT[id][i];
+            else        score += (1.0f - dot(texs[0], texs[i])) * m_weightsT[id][i];
         }
     }
 
     if (totalweight == 0.0) score = 2.0;
     else                    score /= totalweight;
-#endif  
 
     return score;
 }
@@ -1150,7 +1101,7 @@ void Coptim::normalize(std::vector<std::vector<float> >& texs, const int size)
             rgbs[i][2] += texs[i][count++];
         }
 
-        rgbs[i] /= (int)texs[i].size() / 3;
+        rgbs[i] /= (int)texs[i].size() / 3.0f;
 
         ave += rgbs[i];
         ++denom;
@@ -1159,7 +1110,7 @@ void Coptim::normalize(std::vector<std::vector<float> >& texs, const int size)
     // Overall average
     if (denom == 0) return;
 
-    ave /= denom;
+    ave /= (float)denom;
 
     // Scale all the colors
     for (int i = 0; i < size; ++i)
@@ -1193,7 +1144,7 @@ void Coptim::normalize(std::vector<float>& tex)
         ave[2] += *(++texp);
     }
 
-    ave /= size3;
+    ave /= (float)size3;
 
     float ave2 = 0.0;
     texp = &tex[0] - 1;
@@ -1239,38 +1190,13 @@ float Coptim::dot(const std::vector<float>& tex0, const std::vector<float>& tex1
 #endif
 }
 
-float Coptim::ssd(const std::vector<float>& tex0, const std::vector<float>& tex1) const
-{
-    const float scale = 0.01;
-
-#ifndef PMVS_WNCC
-    // Pierre Moulon (use classic access to array, windows STL do not like begin()-1)
-    const int size = (int)tex0.size();
-    float ans = 0.0f;
-    for(int i=0; i < size; ++i) ans += fabs(tex0[i] - tex1[i]);
-
-    return scale * ans / size;
-#else
-    const int size = (int)tex0.size();
-    auto i0 = tex0.begin();
-    auto i1 = tex1.begin();
-    float ans = 0.0f;
-    for (int i = 0; i < size; ++i, ++i0, ++i1)
-    {
-        const float ftmp = fabs((*i0) - (*i1));
-        ans += ftmp * m_template[i];
-    }
-    return scale * ans;
-#endif
-}
-
 float Coptim::getUnit(const int index, const Vec4f& coord) const
 {
     const float fz = norm(coord - m_fm.m_pss.m_photos[index].m_center);
     const float ftmp = m_ipscales[index];
     if (ftmp == 0.0) return 1.0;
 
-    return 2.0 * fz * (0x0001 << m_fm.m_level) / ftmp;
+    return 2.0f * fz * (0x0001 << m_fm.m_level) / ftmp;
 }
 
 // Get x and y axis to collect textures given reference image and normal

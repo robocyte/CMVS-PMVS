@@ -26,13 +26,9 @@ public:
     void collectPatches(const int index, std::priority_queue<Patch::Ppatch, std::vector<Patch::Ppatch>, P_compare>& pqpatches);
     void collectNonFixPatches(const int index, std::vector<Patch::Ppatch>& ppatches);
 
-    void writePatches(void);
     void writePatches2(const std::string prefix);
 
     void writePLY(const std::vector<Patch::Ppatch>& patches, const std::string filename);
-    void writePLY(const std::vector<Patch::Ppatch>& patches, const std::string filename, const std::vector<Vec3i>& colors);
-
-    void readPatches(void);
 
     void clearCounts(void);
     void clearFlags(void);

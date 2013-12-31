@@ -154,7 +154,7 @@ void Soption::initOimages(void)
     ifstr.open(svisdata.c_str());
     if (!ifstr.is_open())
     {
-        std::cerr << "No vis.dat although specified to initOimages: " << std::endl << svisdata << std::endl;
+        std::cerr << "No vis.dat although specified to init oimages: " << std::endl << svisdata << std::endl;
         exit (1);
     }
 

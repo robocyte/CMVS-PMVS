@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
         exit (1);
     }
 
-    for(int i=0; i < argc; ++i) std::cout << std::endl << argv[i];
+    for(int i = 0; i < argc; ++i) std::cout << std::endl << argv[i];
 
     PMVS3::Soption option;
     option.init(argv[1], argv[2]);

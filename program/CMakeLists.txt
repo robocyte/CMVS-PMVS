@@ -66,7 +66,7 @@ IF (OPENMP)
 ENDIF (OPENMP)
 
 IF (MSVC)
-  # Disable warning about the insecurity of using "std::copy".
+  # Disable warning about the insecurity of using "std::copy"
   ADD_DEFINITIONS("/wd4996")
 
   FOREACH(FLAG_VAR ${C_CXX_FLAGS})

@@ -46,7 +46,7 @@ void Cexpand::run(void)
     m_fm.m_pos.collectPatches(m_queue);
 
     std::cerr << "Expanding patches..." << std::flush;
-    std::vector<std::thread> threads(m_fm.m_CPU);
+    std::vector<std::thread> threads(1/*m_fm.m_CPU*/);
     for (auto& t : threads) t = std::thread(expandThreadTmp, this);
     for (auto& t : threads) t.join();
 

@@ -15,7 +15,6 @@ public:
 
 protected:
     static float setThreshold(std::multiset<Cpoint>& grid);
-    int isCloseBoundary(const int x, const int y, const int margin) const;
 
     int                                     m_width;
     int                                     m_height;
@@ -24,7 +23,7 @@ protected:
 
 public:
     template <class T>
-    void convolveX(std::vector<std::vector<T>>& image, const std::vector<std::vector<unsigned char> >& mask, const std::vector<float>& filter, std::vector<std::vector<T>>& buffer)
+    void convolveX(std::vector<std::vector<T>>& image, const std::vector<std::vector<unsigned char>>& mask, const std::vector<float>& filter, std::vector<std::vector<T>>& buffer)
     {
         const int width = image[0].size();
         const int height = image.size();
@@ -56,7 +55,7 @@ public:
     }
 
     template <class T>
-    void convolveY(std::vector<std::vector<T>>& image, const std::vector<std::vector<unsigned char> >& mask, const std::vector<float>& filter, std::vector<std::vector<T>>& buffer)
+    void convolveY(std::vector<std::vector<T>>& image, const std::vector<std::vector<unsigned char>>& mask, const std::vector<float>& filter, std::vector<std::vector<T>>& buffer)
     {
         const int width = image[0].size();
         const int height = image.size();

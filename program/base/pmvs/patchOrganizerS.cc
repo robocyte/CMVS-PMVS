@@ -45,8 +45,8 @@ void CpatchOrganizerS::image2index(Cpatch& patch)
 // Change the contents of m_images from indexes to images
 void CpatchOrganizerS::index2image(Cpatch& patch)
 {
-    for (int i = 0; i < (int)patch.m_images.size(); ++i)  patch.m_images[i] = m_fm.m_pss.m_images[patch.m_images[i]];
-    for (int i = 0; i < (int)patch.m_vimages.size(); ++i) patch.m_vimages[i] = m_fm.m_pss.m_images[patch.m_vimages[i]];
+    for (auto& idx : patch.m_images)  idx = m_fm.m_pss.m_images[idx];
+    for (auto& idx : patch.m_vimages) idx = m_fm.m_pss.m_images[idx];
 }
 
 void CpatchOrganizerS::init(void)
@@ -74,42 +74,6 @@ void CpatchOrganizerS::init(void)
             fill(m_dpgrids[index].begin(), m_dpgrids[index].end(), m_MAXDEPTH);
         }
     }
-}
-
-void CpatchOrganizerS::writePatches(void)
-{
-    for (int index = 0; index < m_fm.m_tnum; ++index)
-    {
-        const int image = m_fm.m_timages[index];
-        std::vector<Ppatch> ppatches;
-        collectNonFixPatches(index, ppatches);
-
-        if (ppatches.empty()) continue;
-
-        char buffer[1024];
-        sprintf(buffer, "%smodels/%08d.patc%d", m_fm.m_prefix.c_str(), image, m_fm.m_level);
-
-        std::ofstream ofstr;
-        ofstr.open(buffer);
-        ofstr << "PATCHES" << std::endl << (int)ppatches.size() << std::endl;
-
-        for (int p = 0; p < (int)ppatches.size(); ++p)
-        {
-            Cpatch patch = *ppatches[p];
-            index2image(patch);
-            ofstr << patch << std::endl;
-        }
-
-        ofstr.close();
-
-        sprintf(buffer, "%smodels/%08d-%d.ply", m_fm.m_prefix.c_str(), image, m_fm.m_level);
-        writePLY(ppatches, buffer);
-    }
-
-    collectPatches(1);
-    char buffer[1024];
-    sprintf(buffer, "%smodels/m-%08d-%d.ply", m_fm.m_prefix.c_str(), m_fm.m_pss.m_images[0], m_fm.m_level);
-    writePLY(m_ppatches, buffer);  
 }
 
 void CpatchOrganizerS::writePatches2(const std::string prefix)
@@ -152,83 +116,6 @@ void CpatchOrganizerS::writePatches2(const std::string prefix)
                   << m_ppatches[p]->m_normal[2] << std::endl;
         }
         ofstr.close();
-    }
-}
-
-void CpatchOrganizerS::readPatches(void)
-{
-    // Read-in existing reconstructed points. Set m_fix to one for non-targetting images
-    for (int i = 0; i < m_fm.m_tnum; ++i)
-    {
-        const int image = m_fm.m_images[i];
-        char buffer[1024];
-        sprintf(buffer, "%smodels/%08d.patc%d", m_fm.m_prefix.c_str(), image, m_fm.m_level);
-        std::ifstream ifstr;
-        ifstr.open(buffer);
-        if (!ifstr.is_open()) continue;
-
-        std::string header;
-        int pnum;
-        ifstr >> header >> pnum;
-        std::cerr << image << ' ' << pnum << " patches" << std::endl;
-        for (int p = 0; p < pnum; ++p)
-        {
-            Ppatch ppatch(new Cpatch());
-            ifstr >> *ppatch;
-            ppatch->m_fix = 0;
-            ppatch->m_vimages.clear();
-
-            image2index(*ppatch);
-            if (ppatch->m_images.empty()) continue;
-
-            // M_vimages must be targetting images
-#ifdef DEBUG
-            for (int j = 0; j < (int)ppatch->m_vimages.size(); ++j)
-            {
-                if (m_fm.m_tnum <= ppatch->m_vimages[j])
-                {
-                    cerr << "Impossible in readPatches. m_vimages must be targetting images" << endl
-                         << "for patches stored in targetting images, if visdata2 have been consistent" << endl;
-                    exit (1);
-                }
-            }
-#endif
-            setGrids(*ppatch);
-            addPatch(ppatch);
-        }
-        ifstr.close();
-    }
-
-    // For patches in non-targetting images
-    for (int i = m_fm.m_tnum; i < m_fm.m_num; ++i)
-    {
-        const int image = m_fm.m_images[i];
-        char buffer[1024];
-        sprintf(buffer, "%smodels/%08d.patc%d", m_fm.m_prefix.c_str(), image, m_fm.m_level);
-        std::ifstream ifstr;
-        ifstr.open(buffer);
-        if (!ifstr.is_open()) continue;
-
-        std::string header;
-        int pnum;
-        ifstr >> header >> pnum;
-        std::cerr << image << ' ' << pnum << " patches" << std::endl;
-
-        for (int p = 0; p < pnum; ++p)
-        {
-            Ppatch ppatch(new Cpatch());
-            ifstr >> *ppatch;
-            ppatch->m_fix = 1;
-            ppatch->m_vimages.clear();
-
-            image2index(*ppatch);
-            if (ppatch->m_images.empty()) continue;
-
-            setGrids(*ppatch);
-            addPatch(ppatch);
-        }
-
-        ifstr.close();
     }
 }
 
@@ -842,43 +729,6 @@ void CpatchOrganizerS::writePLY(const std::vector<Ppatch>& patches, const std::s
               << (*bpatch)->m_normal[2] << ' '
               << color[0] << ' ' << color[1] << ' ' << color[2] << std::endl;
         ++bpatch;
-    }
-    ofstr.close();
-}
-
-void CpatchOrganizerS::writePLY(const std::vector<Ppatch>& patches, const std::string filename, const std::vector<Vec3i>& colors)
-{
-    std::ofstream ofstr;
-    ofstr.open(filename);
-    ofstr << "ply" << std::endl
-          << "format ascii 1.0" << std::endl
-          << "element vertex " << (int)patches.size() << std::endl
-          << "property float x" << std::endl
-          << "property float y" << std::endl
-          << "property float z" << std::endl
-          << "property float nx" << std::endl
-          << "property float ny" << std::endl
-          << "property float nz" << std::endl
-          << "property uchar diffuse_red" << std::endl
-          << "property uchar diffuse_green" << std::endl
-          << "property uchar diffuse_blue" << std::endl
-          << "end_header" << std::endl;
-
-    auto bpatch = patches.cbegin();
-    auto bend = patches.cend();
-    auto colorb = colors.cbegin();
-
-    while (bpatch != bend)
-    {
-        ofstr << (*bpatch)->m_coord[0]  << ' '
-              << (*bpatch)->m_coord[1]  << ' '
-              << (*bpatch)->m_coord[2]  << ' '
-              << (*bpatch)->m_normal[0] << ' '
-              << (*bpatch)->m_normal[1] << ' '
-              << (*bpatch)->m_normal[2] << ' '
-              << *colorb << std::endl;
-        ++bpatch;
-        ++colorb;
     }
     ofstr.close();
 }
