@@ -39,49 +39,6 @@ void Cgraclus::initGraph(GraphType& graph)
 //----------------------------------------------------------------------
 // cutType
 // 0: NCUT, 1: RASSO
-void Cgraclus::run(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
-                   const int nparts, const int cutType,
-                   std::vector<idxtype>& part)
-{
-    GraphType graph;
-    initGraph(graph);
-
-    graph.ncon = 1;
-
-    graph.xadj   = &xadj[0];
-    graph.adjncy = &adjncy[0];
-    graph.vwgt   = nullptr;
-    graph.adjwgt = nullptr;
-
-    graph.nvtxs  = (int)xadj.size() - 1;
-    graph.nedges = (int)adjncy.size();
-
-    const int wgtflag = 0;
-    runSub(graph, nparts, cutType, wgtflag, part);
-}
-
-void Cgraclus::runV(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
-                    std::vector<idxtype>& vwgt, const int nparts, const int cutType,
-                    std::vector<idxtype>& part)
-{
-    GraphType graph;
-    initGraph(graph);
-  
-    graph.ncon = 1;
-
-    graph.xadj   = &xadj[0];
-    graph.adjncy = &adjncy[0];
-    graph.vwgt   = &vwgt[0];
-    graph.adjwgt = nullptr;
-
-    graph.nvtxs     = (int)xadj.size() - 1;
-    graph.nedges = (int)adjncy.size();
-
-    const int wgtflag = 2;
-    runSub(graph, nparts, cutType, wgtflag, part);
-}
-
-//----------------------------------------------------------------------
 void Cgraclus::runE(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
                     std::vector<idxtype>& adjwgt, const int nparts, const int cutType,
                     std::vector<idxtype>& part)
@@ -100,27 +57,6 @@ void Cgraclus::runE(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
     graph.nedges = (int)adjncy.size();
 
     const int wgtflag = 1;
-    runSub(graph, nparts, cutType, wgtflag, part);
-}
-
-void Cgraclus::runVE(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
-                     std::vector<idxtype>& vwgt, std::vector<idxtype>& adjwgt, const int nparts, const int cutType,
-                     std::vector<idxtype>& part)
-{
-    GraphType graph;
-    initGraph(graph);
-
-    graph.ncon = 1;
-
-    graph.xadj   = &xadj[0];
-    graph.adjncy = &adjncy[0];
-    graph.vwgt   = &vwgt[0];
-    graph.adjwgt = &adjwgt[0];
-
-    graph.nvtxs  = (int)xadj.size() - 1;
-    graph.nedges = (int)adjncy.size();
-
-    const int wgtflag = 3;
     runSub(graph, nparts, cutType, wgtflag, part);
 }
 

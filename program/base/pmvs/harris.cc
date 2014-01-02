@@ -127,9 +127,9 @@ void Charris::preprocess(void)
 
     std::vector<float> dfilter, ifilter;
     dfilter.resize(3);
-    dfilter[0] = -0.5;  dfilter[1] = 0;  dfilter[2] = 0.5;
+    dfilter[0] = -0.5f;  dfilter[1] = 0.0f;  dfilter[2] = 0.5f;
     ifilter.resize(3);
-    ifilter[0] = 1.0 / 3.0;  ifilter[1] = 1.0 / 3.0;  ifilter[2] = 1.0 / 3.0;
+    ifilter[0] = 1.0f / 3.0f;  ifilter[1] = 1.0f / 3.0f;  ifilter[2] = 1.0f / 3.0f;
 
     convolveX(m_dIdx, m_mask, dfilter, vvvftmp);
     convolveY(m_dIdx, m_mask, ifilter, vvvftmp);
@@ -208,7 +208,7 @@ void Charris::run(const std::vector<unsigned char>& image, const std::vector<uns
             if ((int)resultgrids[y0][x0].size() < maxPointsGrid || resultgrids[y0][x0].begin()->m_response < m_response[y][x])
             {
                 Cpoint p;
-                p.m_icoord = Vec3f(x, y, 1.0f);
+                p.m_icoord = Vec3f((float)x, (float)y, 1.0f);
                 p.m_response = m_response[y][x];
                 p.m_type = 0;
 

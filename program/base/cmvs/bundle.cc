@@ -23,19 +23,6 @@ int memory_saving;
 using namespace boost;
 using namespace CMVS;
 
-Cbundle::Cbundle(void)
-{
-    m_CPU = 8;
-    m_junit = 100;
-    m_debug = 0;
-    m_puf = NULL;
-    m_ptree = NULL;
-}
-
-Cbundle::~Cbundle()
-{
-}
-
 void Cbundle::prep(const std::string prefix, const int imageThreshold, const int tau, const float scoreRatioThreshold, const float coverageThreshold, const int pnumThreshold, const int CPU)
 {
     if (pnumThreshold != 0)
@@ -719,12 +706,6 @@ void Cbundle::mergeSfMPThread(void) {
   }
 }
 
-void* Cbundle::mergeSfMPThreadTmp(void* arg)
-{
-    ((Cbundle*)arg)->mergeSfMPThread();
-    return nullptr;
-}
-
 void Cbundle::mergeSfMP(void) {
   // Repeat certain times until no change
   const int cpnum = (int)m_coords.size();
@@ -765,7 +746,7 @@ void Cbundle::mergeSfMP(void) {
 
     m_count = 0;
     std::vector<std::thread> threads(m_CPU);
-    for (auto& t : threads) t = std::thread(mergeSfMPThreadTmp, this);
+    for (auto& t : threads) t = std::thread(&Cbundle::mergeSfMPThread, this);
     for (auto& t : threads) t.join();
 
     int newpnum = 0;

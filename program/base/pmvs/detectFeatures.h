@@ -19,7 +19,7 @@ class CdetectFeatures
 {
 public:
     CdetectFeatures() = default;
-    virtual ~CdetectFeatures();
+    virtual ~CdetectFeatures() {}
 
     void run(const Image::CphotoSetS& pss, const int num, const int csize, const int level, const int CPU = 1);
 
@@ -35,8 +35,7 @@ protected:
 
     std::list<int> m_jobs;
 
-    void runThread(void);
-    static void* runThreadTmp(void*arg);
+    void runThread();
 };
 
 };

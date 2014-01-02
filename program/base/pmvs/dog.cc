@@ -151,7 +151,7 @@ void Cdog::run(const std::vector<unsigned char>& image, const std::vector<unsign
 
                     alreadydetected[y][x] = 1;
                     Cpoint p;
-                    p.m_icoord = Vec3f(x, y, 1.0f);
+                    p.m_icoord = Vec3f((float)x, (float)y, 1.0f);
                     p.m_response = fabs(cdog[y][x]);
                     p.m_type = 1;
 

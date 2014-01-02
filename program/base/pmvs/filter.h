@@ -24,11 +24,9 @@ public:
 protected:
     void filterOutside(void);
     void filterOutsideThread(void);
-    static void* filterOutsideThreadTmp(void* arg);
 
     void filterExact(void);
     void filterExactThread(void);
-    static void* filterExactThreadTmp(void* arg);
 
     void filterNeighbor(const int time);
     void filterSmallGroups(void);
@@ -48,16 +46,9 @@ protected:
     // Thread related
     //----------------------------------------------------------------------
     void setDepthMapsThread(void);
-    static void* setDepthMapsThreadTmp(void* arg);
-
     void addPatchVThread(void);
-    static void* addPatchVThreadTmp(void* arg);
-
     void setVGridsVPGridsThread(void);
-    static void* setVGridsVPGridsThreadTmp(void* arg);
-
     void filterNeighborThread(void);
-    static void* filterNeighborThreadTmp(void* arg);
 
     CfindMatch& m_fm;
 };

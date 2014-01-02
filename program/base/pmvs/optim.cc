@@ -52,22 +52,19 @@ namespace
 
     struct MY_F_LM_FUNCTOR : LMFunctor<double>
     {
-        MY_F_LM_FUNCTOR(Coptim* one, void* data)
+        MY_F_LM_FUNCTOR(int data)
             : LMFunctor<double>(3, 3)
-            , m_one(one)
             , m_data(data)
         {}
 
         int operator()(const Eigen::VectorXd &x, Eigen::VectorXd &fvec) const
         {
-            int info;
-            m_one->my_f_lm(x.data(), 3, m_data, fvec.data(), &info);
+            Coptim::my_f_lm(x.data(), 3, (void *)&m_data, fvec.data(), nullptr);
 
             return 0;
         }
 
-        Coptim* m_one;
-        void*   m_data;
+        int m_data;
     };
 
 }
@@ -287,14 +284,6 @@ void Coptim::constraintImages(Cpatch& patch, const float nccThreshold, const int
 
 void Coptim::setRefImage(Cpatch& patch, const int id)
 {
-#ifdef DEBUG
-    if (patch.m_images.empty())
-    {
-        std::cerr << "empty images" << std::endl;
-        exit (1);
-    }
-#endif
-
     // Set the reference image only for target images
     std::vector<int> indexes;
     auto begin = patch.m_images.begin();
@@ -436,16 +425,14 @@ int Coptim::check(Cpatch& patch)
         return 1;
     }
 
-    {
-        std::vector<Ppatch> neighbors;
-        m_fm.m_pos.findNeighbors(patch, neighbors, 1, 4, 2);
+    std::vector<Ppatch> neighbors;
+    m_fm.m_pos.findNeighbors(patch, neighbors, 1, 4, 2);
 
-        // Only check when enough number of neighbors
-        if (6 < (int)neighbors.size() && m_fm.m_filter.filterQuad(patch, neighbors))
-        {
-            patch.m_images.clear();
-            return 1;
-        }
+    // Only check when enough number of neighbors
+    if (6 < (int)neighbors.size() && m_fm.m_filter.filterQuad(patch, neighbors))
+    {
+        patch.m_images.clear();
+        return 1;
     }
 
     return 0;
@@ -455,8 +442,7 @@ void Coptim::removeImagesEdge(Patch::Cpatch& patch) const
 {
     std::vector<int> newindexes;
     auto bimage = patch.m_images.begin();
-    auto eimage = patch.m_images.end();
-    while (bimage != eimage)
+    while (bimage != patch.m_images.end())
     {
         if (m_fm.m_pss.getEdge(patch.m_coord, *bimage, m_fm.m_level)) newindexes.push_back(*bimage);
         ++bimage;
@@ -468,10 +454,7 @@ void Coptim::removeImagesEdge(Patch::Cpatch& patch) const
 void Coptim::addImages(Patch::Cpatch& patch) const
 {
     // Take into account m_edge
-    std::vector<int> used;
-    used.resize(m_fm.m_num);
-    for (int index = 0; index < m_fm.m_num; ++index)
-    used[index] = 0;
+    std::vector<int> used(m_fm.m_num, 0);
 
     auto bimage = patch.m_images.begin();
     auto eimage = patch.m_images.end();
@@ -523,11 +506,9 @@ void Coptim::computeUnits(const Patch::Cpatch& patch, std::vector<float>& units)
     units.resize(size);
 
     auto bimage = patch.m_images.begin();
-    auto eimage = patch.m_images.end();
-
     auto bfine = units.begin();
 
-    while (bimage != eimage)
+    while (bimage != patch.m_images.end())
     {
         *bfine = INT_MAX/2;
 
@@ -547,9 +528,8 @@ void Coptim::computeUnits(const Patch::Cpatch& patch, std::vector<float>& units)
 void Coptim::computeUnits(const Patch::Cpatch& patch, std::vector<int>& indexes, std::vector<float>& units, std::vector<Vec4f>& rays) const
 {
     auto bimage = patch.m_images.begin();
-    auto eimage = patch.m_images.end();
 
-    while (bimage != eimage)
+    while (bimage != patch.m_images.end())
     {
         Vec4f ray = m_fm.m_pss.m_photos[*bimage].m_center - patch.m_coord;
         unitize(ray);
@@ -584,14 +564,14 @@ void Coptim::my_f_lm(const double *par, int m_dat, const void *data, double *fve
     double xs[3] = {par[0], par[1], par[2]};
     const int id = *((int*)data);
 
-    const float angle1 = xs[1] * m_one->m_ascalesT[id];
-    const float angle2 = xs[2] * m_one->m_ascalesT[id];
+    const double angle1 = xs[1] * m_one->m_ascalesT[id];
+    const double angle2 = xs[2] * m_one->m_ascalesT[id];
 
     double ret = 0.0;
 
-    if (angle1 <= - M_PI / 2.0f || M_PI / 2.0f <= angle1 || angle2 <= - M_PI / 2.0f || M_PI / 2.0f <= angle2)
+    if (angle1 <= - M_PI / 2.0 || M_PI / 2.0 <= angle1 || angle2 <= - M_PI / 2.0 || M_PI / 2.0 <= angle2)
     {
-        ret = 2.0f;
+        ret = 2.0;
 
         fvec[0] = ret;
         fvec[1] = ret;
@@ -618,18 +598,18 @@ void Coptim::my_f_lm(const double *par, int m_dat, const void *data, double *fve
         if (flag == 0) m_one->normalize(m_one->m_texsT[id][i]);
     }
 
-    if (m_one->m_texsT[id][0].empty()) ret = 2.0f;
+    if (m_one->m_texsT[id][0].empty()) ret = 2.0;
 
-    double ans = 0.0f;
-    int denom = 0;
+    double ans = 0.0;
+    int denom  = 0;
     for (int i = 1; i < size; ++i)
     {
         if (m_one->m_texsT[id][i].empty()) continue;
-        ans += robustincc(1.0 - m_one->dot(m_one->m_texsT[id][0], m_one->m_texsT[id][i]));
+        ans += (double)robustincc(1.0 - m_one->dot(m_one->m_texsT[id][0], m_one->m_texsT[id][i]));
         denom++;
     }
 
-    if (denom < mininum - 1) ret = 2.0f;
+    if (denom < mininum - 1) ret = 2.0;
     else                     ret = ans / denom;
 
     fvec[0] = ret;
@@ -676,7 +656,7 @@ double Coptim::my_f(const gsl_vector *v, void *params)
         if (m_one->m_texsT[id][i].empty())
         continue;
         ans +=
-        robustincc(1.0 - m_one->dot(m_one->m_texsT[id][0], m_one->m_texsT[id][i]));
+        robustincc(1.0f - m_one->dot(m_one->m_texsT[id][0], m_one->m_texsT[id][i]));
         denom++;
     }
 
@@ -704,7 +684,7 @@ void Coptim::refinePatchBFGS(Cpatch& patch, const int id, const int time)
     m_indexesT[id] = patch.m_images;
 
     m_dscalesT[id] = patch.m_dscale;
-    m_ascalesT[id] = M_PI / 48.0f; //patch.m_ascale;
+    m_ascalesT[id] = (float)M_PI / 48.0f; //patch.m_ascale;
 
     setWeightsT(patch, id);
 
@@ -743,7 +723,7 @@ void Coptim::refinePatchBFGS(Cpatch& patch, const int id, const int time)
     {
         decode(patch.m_coord, patch.m_normal, p, id);
 
-        patch.m_ncc = 1.0 - unrobustincc(computeINCC(patch.m_coord, patch.m_normal, patch.m_images, id, 1));
+        patch.m_ncc = 1.0f - unrobustincc(computeINCC(patch.m_coord, patch.m_normal, patch.m_images, id, 1));
     } else
     {
         patch.m_images.clear();
@@ -766,7 +746,7 @@ bool Coptim::refinePatchBFGS2(Cpatch& patch, const int id, const int time)
     m_indexesT[id] = patch.m_images;
 
     m_dscalesT[id] = patch.m_dscale;
-    m_ascalesT[id] = M_PI / 48.0f;//patch.m_ascale;
+    m_ascalesT[id] = (float)M_PI / 48.0f;
 
     setWeightsT(patch, id);
 
@@ -782,31 +762,45 @@ bool Coptim::refinePatchBFGS2(Cpatch& patch, const int id, const int time)
     lm_status_struct status;
 
     // This function requires data >= params, so the later 3 is a fudge
-    std::cerr << "x before:    " << x[0] << " " << x[1] << " " << x[2] << std::endl;
-    //lmmin(3, x, 3, (void *)&idtmp, my_f_lm, &control, &status, lm_printout_std);
-    //std::cerr << "x after old: " << x[0] << " " << x[1] << " " << x[2] << std::endl;
+    //std::cerr << "x before:    " << x[0] << " " << x[1] << " " << x[2] << std::endl;
+    //std::cerr << "begin\n";
+    lmmin(3, x, 3, (void *)&idtmp, my_f_lm, &control, &status, lm_printout_std);
+    //std::cerr << "x after old: " << x[0] << " " << x[1] << " " << x[2] << std::endl << std::endl;
 
 
-    Eigen::VectorXd xe(3);
-    xe << p[0], p[1], p[2];
+    //Eigen::VectorXd xe(3);
+    //xe << p[0], p[1], p[2];
 
-    MY_F_LM_FUNCTOR functor(this, (void *)&idtmp);
-    Eigen::DenseIndex nfev;
-    auto statuse = Eigen::LevenbergMarquardt<MY_F_LM_FUNCTOR>::lmdif1(functor, xe, &nfev, 1.0e-5);
-    std::cerr << "x after new: " << xe[0] << " " << xe[1] << " " << xe[2] << std::endl << std::endl;
+    //MY_F_LM_FUNCTOR functor(idtmp);
+    //Eigen::NumericalDiff<MY_F_LM_FUNCTOR> numDiff(functor);
+    //Eigen::LevenbergMarquardt<Eigen::NumericalDiff<MY_F_LM_FUNCTOR>> lm(numDiff);
+
+    //lm.parameters.ftol = 1.0e-7;
+    //lm.parameters.xtol = 1.0e-7;
+    //lm.parameters.gtol = 1.0e-7;
+    //lm.parameters.epsfcn = 1.0e-5;
+    //lm.parameters.maxfev = 100;
+
+    //auto ret = lm.minimize(xe);
+    //std::cerr << "x after new: " << xe[0] << " " << xe[1] << " " << xe[2] << "    " << ret << " " << std::scientific << lm.iter << " " << lm.gnorm << std::endl;
+    //std::cerr << "end" << std::endl << std::endl;
+
+    //p[0] = xe[0];
+    //p[1] = xe[1];
+    //p[2] = xe[2];
 
 
 
-    p[0] = xe[0];
-    p[1] = xe[1];
-    p[2] = xe[2];
+    p[0] = x[0];
+    p[1] = x[1];
+    p[2] = x[2];
 
     // Status.info 0 to 3 are "good", the rest are bad
-    if (statuse >= 0 && statuse <= 3)
+    if (status.info >= 0 && status.info <= 3)
     {
         decode(patch.m_coord, patch.m_normal, p, id);
 
-        patch.m_ncc = 1.0 - unrobustincc(computeINCC(patch.m_coord, patch.m_normal, patch.m_images, id, 1));
+        patch.m_ncc = 1.0f - unrobustincc(computeINCC(patch.m_coord, patch.m_normal, patch.m_images, id, 1));
     } else
     {
         return false;
@@ -832,15 +826,15 @@ void Coptim::encode(const Vec4f& coord, const Vec4f& normal, double* const vect,
     vect[2] = asin(std::max(-1.0f, std::min(1.0f, fy)));
     const float cosb = cos(vect[2]);
 
-    if (cosb == 0.0)
+    if (cosb == 0.0f)
     {
         vect[1] = 0.0;
     } else
     {
-        const float sina = fx / cosb;
-        const float cosa = - fz / cosb;
+        const float sina =  fx / cosb;
+        const float cosa = -fz / cosb;
         vect[1] = acos(std::max(-1.0f, std::min(1.0f, cosa)));
-        if (sina < 0.0) vect[1] = - vect[1];
+        if (sina < 0.0f) vect[1] = - vect[1];
     }
 
     vect[1] = vect[1] / m_ascalesT[id];
@@ -865,7 +859,7 @@ void Coptim::decode(Vec4f& coord, Vec4f& normal, const double* const vect, const
 
 void Coptim::decode(Vec4f& coord, const double* const vect, const int id) const
 {
-    coord = m_centersT[id] + m_dscalesT[id] * vect[0] * m_raysT[id];
+    coord = m_centersT[id] + m_dscalesT[id] * (float)vect[0] * m_raysT[id];
 }
 
 void Coptim::setINCCs(const Patch::Cpatch& patch, std::vector<float> & inccs, const std::vector<int>& indexes, const int id, const int robust)
@@ -995,8 +989,8 @@ int Coptim::grabTex(const Vec4f& coord, const Vec4f& pxaxis, const Vec4f& pyaxis
     const int margin = size / 2;
 
     Vec3f center = m_fm.m_pss.project(index, coord, m_fm.m_level);
-    Vec3f dx = m_fm.m_pss.project(index, coord + pxaxis, m_fm.m_level) - center;
-    Vec3f dy = m_fm.m_pss.project(index, coord + pyaxis, m_fm.m_level) - center;
+    Vec3f dx     = m_fm.m_pss.project(index, coord + pxaxis, m_fm.m_level) - center;
+    Vec3f dy     = m_fm.m_pss.project(index, coord + pyaxis, m_fm.m_level) - center;
 
     const float ratio = (norm(dx) + norm(dy)) / 2.0f;
     int leveldif = (int)floor(log(ratio) / Log2 + 0.5f);
@@ -1063,7 +1057,7 @@ double Coptim::computeINCC(const Vec4f& coord, const Vec4f& normal, const std::v
 
     double score = 0.0;
 
-    float totalweight = 0.0;
+    float totalweight = 0.0f;
     for (int i = 1; i < size; ++i)
     {
         if (!texs[i].empty())
@@ -1081,7 +1075,7 @@ double Coptim::computeINCC(const Vec4f& coord, const Vec4f& normal, const std::v
 }
 
 // Normalize only scale for each image
-void Coptim::normalize(std::vector<std::vector<float> >& texs, const int size)
+void Coptim::normalize(std::vector<std::vector<float>>& texs, const int size)
 {
     // Compute average rgb
     Vec3f ave;

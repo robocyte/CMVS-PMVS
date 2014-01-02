@@ -27,22 +27,11 @@ struct Sadd
 
 struct Ssfm2
 {
-    Ssfm2()
-        : m_cluster(-1)
-        , m_score(-2.0f)
-        , m_scoreThreshold(-1.0f)
-        , m_satisfied(1)
-    {
-    }
+    Ssfm2() = default;
 
-    // which cluster it belongs to currently
-    int m_cluster;
-
-    // current score
-    float m_score;
-  
-    // score threshold
-    float m_scoreThreshold;
+    int m_cluster = -1;                 // which cluster it belongs to currently
+    float m_score = -2.0f;
+    float m_scoreThreshold = -1.0f;
 
     // If SFM is satisfied or not.
     // 1: satisfied, 0: not satisfied
@@ -50,39 +39,37 @@ struct Ssfm2
     // In adding images,
     // 2: currently not satisfied, 1: satisfied,
     // 0: not satisfied from the begining and no hope
-    char m_satisfied;
+    char m_satisfied = 1;
   
-    // For SfM point that has not bee satisfied, compute several number
-    // of images that can be added to gain more info
+    // For SfM point that has not bee satisfied, compute several number of images that can be added to gain more info
     std::vector<Sadd> m_adds;
 
-    // best images
-    std::vector<int> m_uimages;
+    std::vector<int> m_uimages;         // best images
 };
 
 class Cbundle
 {
 public:
-    Cbundle();
-    virtual ~Cbundle();
+    Cbundle() = default;
+    virtual ~Cbundle() {}
 
     void run(const std::string prefix, const int imageThreshold, const int tau, const float scoreRatioThreshold, const float coverageThreshold, const int pnumThreshold, const int CPU);
 
-    std::string m_prefix; // Root dir
+    std::string m_prefix;                       // Root dir
 
-    int m_cnum; // # of cameras
-    int m_pnum; // # of points
+    int m_cnum;                                 // # of cameras
+    int m_pnum;                                 // # of points
 
     // Point params
     std::vector<Vec4f> m_coords;
     std::vector<std::vector<int>> m_visibles;
 
     std::vector<Vec3f> m_colors;
-    std::vector<std::vector<int>> m_vpoints; // A set of point ids visible in each camera
+    std::vector<std::vector<int>> m_vpoints;    // A set of point ids visible in each camera
 
     std::vector<int> m_pweights;
 
-    std::vector<std::vector<int>> m_neighbors; // A list of connected images, for each camera.
+    std::vector<std::vector<int>> m_neighbors;  // A list of connected images, for each camera.
 
     // Width and height of depth map
     std::vector<int> m_widths;
@@ -90,7 +77,7 @@ public:
 
     std::vector<int> m_levels; // scale
 
-    std::vector<std::vector<int> > m_timages; // m_timages need to be sorted for addImages.
+    std::vector<std::vector<int> > m_timages;   // m_timages need to be sorted for addImages.
     std::vector<std::vector<int> > m_oimages;
 
 protected:
@@ -108,15 +95,12 @@ protected:
     void resetVisibles(void);
 
     void setNewImages(const int pid, const int rimage, std::vector<int>& newimages); // set new images without image while taking into account m_removed
-
     void sRemoveImages(void);
     void checkImage(const int image);
 
     void setCluster(const int p);
-
-    void setScoresClusters(void);
-
     void setClusters(void); // For unsatisfied sfm points, update cluster
+    void setScoresClusters(void);
 
     void slimNeighborsSetLinks(void);
 
@@ -128,10 +112,8 @@ protected:
 
     static float angleScore(const Vec4f& ray0, const Vec4f& ray1);
 
-    void mergeSfM(void);
     void mergeSfMP(void);
     void mergeSfMPThread(void);
-    static void* mergeSfMPThreadTmp(void* arg); 
 
     std::vector<char> m_merged;
 
@@ -181,13 +163,13 @@ protected:
 
     std::vector<int> m_addnums;
 
-    float m_dscale; // scaling factor for depth
-    float m_dscale2; // scaling for kdtree version
+    float m_dscale;                 // scaling factor for depth
+    float m_dscale2;                // scaling for kdtree version
 
     Image::CphotoSetS m_pss;
 
-    int m_dlevel; // depth level
-    int m_maxLevel; // maxLevel in m_pss
+    int m_dlevel;                   // depth level
+    int m_maxLevel;                 // maxLevel in m_pss
 
     int m_imageThreshold;
     int m_pnumThreshold;            // Num of points for images to be connected
@@ -195,19 +177,19 @@ protected:
     float m_scoreRatioThreshold;    // Score ratio threshold. Optimal score using all the visible images times this threshold is the mimimum possible score to be satisfied.
     float m_coverageThreshold;      // How much SFM must be satisfied in each image.
 
-    boost::disjoint_sets_with_storage<>* m_puf; // union find for sfm points
+    boost::disjoint_sets_with_storage<>* m_puf = nullptr; // union find for sfm points
 
-    sfcnn<const float*, 3, float>* m_ptree;
+    sfcnn<const float*, 3, float>* m_ptree = nullptr;
 
     // Threads
-    int             m_CPU;
+    int             m_CPU = 8;
     std::mutex      m_lock;
     std::list<int>  m_jobs;
-    int             m_junit;
+    int             m_junit = 100;
     int             m_thread;
     int             m_count;
 
-    int m_debug;
+    int m_debug = 0;
 
     void startTimer(void);
     time_t curTimer(void);

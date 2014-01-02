@@ -25,8 +25,8 @@ public:
     template <class T>
     void convolveX(std::vector<std::vector<T>>& image, const std::vector<std::vector<unsigned char>>& mask, const std::vector<float>& filter, std::vector<std::vector<T>>& buffer)
     {
-        const int width = image[0].size();
-        const int height = image.size();
+        const int width = (int)image[0].size();
+        const int height = (int)image.size();
         const int margin = ((int)filter.size()) / 2;
     
         for (int y = 0; y < height; ++y)
@@ -57,8 +57,8 @@ public:
     template <class T>
     void convolveY(std::vector<std::vector<T>>& image, const std::vector<std::vector<unsigned char>>& mask, const std::vector<float>& filter, std::vector<std::vector<T>>& buffer)
     {
-        const int width = image[0].size();
-        const int height = image.size();
+        const int width = (int)image[0].size();
+        const int height = (int)image.size();
         const int margin = ((int)filter.size()) / 2;
     
         for (int y = 0; y < height; ++y)

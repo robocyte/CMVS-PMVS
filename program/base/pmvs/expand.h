@@ -16,8 +16,8 @@ public:
     Cexpand(CfindMatch& findMatch);
     ~Cexpand() {};
 
-    void init(void);
-    void run(void);
+    void init();
+    void run();
 
     float computeRadius(const Patch::Cpatch& patch);
 
@@ -34,8 +34,7 @@ protected:
 
     CfindMatch& m_fm;
 
-    void expandThread(void);
-    static void* expandThreadTmp(void* arg);
+    void expandThread();
 
     std::vector<int> m_ecounts;   // Number of trials
     std::vector<int> m_fcounts0;  // Number of failures in the prep

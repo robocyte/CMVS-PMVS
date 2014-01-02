@@ -63,18 +63,16 @@ public:
     static double my_f(const gsl_vector *v, void *params);
     static void my_f_lm(const double *par, int m_dat, const void *data, double *fvec, int *info);
 
-protected:
     void encode(const Vec4f& coord, double* const vect, const int id) const;
     void encode(const Vec4f& coord, const Vec4f& normal, double* const vect, const int id) const;
     void decode(Vec4f& coord, Vec4f& normal, const double* const vect, const int id) const;
     void decode(Vec4f& coord, const double* const vect, const int id) const;
 
-public:
     void setWeightsT(const Patch::Cpatch& patch, const int id);
 
-    double computeINCC(const Vec4f& coord, const Vec4f& normal, const std::vector<int>& indexes, const int id, const int robust);
     void getPAxes(const int index, const Vec4f& coord, const Vec4f& normal, Vec4f& pxaxis, Vec4f& pyaxis) const;
 
+    double computeINCC(const Vec4f& coord, const Vec4f& normal, const std::vector<int>& indexes, const int id, const int robust);
     static inline float robustincc(const float rhs) { return rhs / (1 + 3 * rhs); }
     static inline float unrobustincc(const float rhs) { return rhs / (1 - 3 * rhs); }
 

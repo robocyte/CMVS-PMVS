@@ -83,7 +83,7 @@ void Cseed::run(void)
     time_t curtime = tv;
 
     std::vector<std::thread> threads(m_fm.m_CPU);
-    for (auto& t : threads) t = std::thread(initialMatchThreadTmp, this);
+    for (auto& t : threads) t = std::thread(&Cseed::initialMatchThread, this);
     for (auto& t : threads) t.join();
 
     std::cerr << "done" << std::endl;
@@ -125,12 +125,6 @@ void Cseed::initialMatchThread(void)
 
         initialMatch(index, id);
     }
-}
-
-void* Cseed::initialMatchThreadTmp(void* arg)
-{
-    ((Cseed*)arg)->initialMatchThread();
-    return NULL;
 }
 
 void Cseed::clear(void)

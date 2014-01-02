@@ -9,11 +9,8 @@ int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
-        std::cerr << "Usage: " << std::endl
-                  << argv[0]
-                  << " prefix level[=1] csize[=2] threshold[=0.7] wsize[=7]"
-                  << " minImageNum[=3] CPU[=8]" << std::endl
-                  << std::endl
+        std::cerr << "Usage:" << std::endl
+                  << argv[0] << " prefix level[=1] csize[=2] threshold[=0.7] wsize[=7] minImageNum[=3] CPU[=8]" << std::endl << std::endl
                   << "Parameters are for PMVS2 option files." << std::endl
                   << "Please refer to the following URL for the definitions:" << std::endl
                   << "http://grail.cs.washington.edu/software/pmvs/documentation.html" << std::endl;

@@ -11,10 +11,6 @@
 using namespace PMVS3;
 using namespace Image;
 
-CdetectFeatures::~CdetectFeatures()
-{
-}
-
 void CdetectFeatures::run(const CphotoSetS& pss, const int num, const int csize, const int level, const int CPU)
 {
     m_ppss = &pss;
@@ -28,20 +24,13 @@ void CdetectFeatures::run(const CphotoSetS& pss, const int num, const int csize,
     for (int index = 0; index < num; ++index) m_jobs.push_back(index);
 
     std::vector<std::thread> threads(m_CPU);
-    for (auto& t : threads) t = std::thread(runThreadTmp, this);
+    for (auto& t : threads) t = std::thread(&CdetectFeatures::runThread, this);
     for (auto& t : threads) t.join();
 
     std::cerr << "done" << std::endl;
 }
 
-void* CdetectFeatures::runThreadTmp(void* arg)
-{
-    CdetectFeatures* detectFeatures = (CdetectFeatures*)arg;  
-    detectFeatures->runThread();
-    return NULL;
-}
-
-void CdetectFeatures::runThread(void)
+void CdetectFeatures::runThread()
 {
     while (1)
     {

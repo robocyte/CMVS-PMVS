@@ -31,26 +31,11 @@ class Cgraclus
 public:
     Cgraclus() = default;
 
-    virtual ~Cgraclus() = default;
-
-    // Threads free. no weights
-    static void run(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
-                    const int nparts, const int cutType,
-                    std::vector<idxtype>& part);
-
-    // Threads free. vertex weights
-    static void runV(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
-                    std::vector<idxtype>& vwgt, const int nparts, const int cutType,
-                    std::vector<idxtype>& part);
+    virtual ~Cgraclus() {}
 
     // Threads free. edge weights
     static void runE(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
                     std::vector<idxtype>& adjwgt, const int nparts, const int cutType,
-                    std::vector<idxtype>& part);
-
-    // Threads free. vertex and edge weights
-    static void runVE(std::vector<idxtype>& xadj, std::vector<idxtype>& adjncy,
-                    std::vector<idxtype>& vwgt, std::vector<idxtype>& adjwgt, const int nparts, const int cutType,
                     std::vector<idxtype>& part);
 
 protected:

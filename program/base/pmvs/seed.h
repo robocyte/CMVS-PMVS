@@ -40,8 +40,7 @@ protected:
 
     std::vector<std::vector<std::vector<Ppoint>>> m_ppoints;    // points in a grid. For each index, grid
 
-    void            initialMatchThread(void);
-    static void*    initialMatchThreadTmp(void* arg);
+    void initialMatchThread(void);
 
     std::vector<int> m_scounts;     // Number of trials
     std::vector<int> m_fcounts0;    // Number of failures in the prep

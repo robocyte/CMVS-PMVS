@@ -52,7 +52,7 @@ void Cfilter::filterOutside(void)
 
     m_fm.m_count = 0;
     std::vector<std::thread> threads(m_fm.m_CPU);
-    for (auto& t : threads) t = std::thread(filterOutsideThreadTmp, this);
+    for (auto& t : threads) t = std::thread(&Cfilter::filterOutsideThread, this);
     for (auto& t : threads) t.join();
     std::cerr << std::endl;
 
@@ -208,12 +208,6 @@ void Cfilter::filterOutsideThread(void)
     }
 }
 
-void* Cfilter::filterOutsideThreadTmp(void* arg)
-{
-    ((Cfilter*)arg)->filterOutsideThread();
-    return NULL;
-}
-
 void Cfilter::filterExact(void)
 {
     time_t tv;
@@ -233,7 +227,7 @@ void Cfilter::filterExact(void)
 
     m_fm.m_count = 0;
     std::vector<std::thread> threads(m_fm.m_CPU);
-    for (auto& t : threads) t = std::thread(filterExactThreadTmp, this);
+    for (auto& t : threads) t = std::thread(&Cfilter::filterExactThread, this);
     for (auto& t : threads) t.join();
 
     std::cerr << std::endl;
@@ -372,12 +366,6 @@ void Cfilter::filterExactThread(void)
     m_fm.m_lock.unlock();
 }
 
-void* Cfilter::filterExactThreadTmp(void* arg)
-{
-    ((Cfilter*)arg)->filterExactThread();
-    return NULL;
-}
-
 void Cfilter::filterNeighborThread(void)
 {
     const int size = (int)m_fm.m_pos.m_ppatches.size();  
@@ -474,12 +462,6 @@ int Cfilter::filterQuad(const Patch::Cpatch& patch, const std::vector<Ppatch>& n
     else                                 return 1;
 }
 
-void* Cfilter::filterNeighborThreadTmp(void* arg)
-{
-    ((Cfilter*)arg)->filterNeighborThread();
-    return NULL;
-}
-
 void Cfilter::filterNeighbor(const int times)
 {
     time_t tv;
@@ -506,7 +488,7 @@ void Cfilter::filterNeighbor(const int times)
         for (int j = 0; j < jtmp; ++j) m_fm.m_jobs.push_back(j);
 
         std::vector<std::thread> threads(m_fm.m_CPU);
-        for (auto& t : threads) t = std::thread(filterNeighborThreadTmp, this);
+        for (auto& t : threads) t = std::thread(&Cfilter::filterNeighborThread, this);
         for (auto& t : threads) t.join();
 
         auto bpatch  = m_fm.m_pos.m_ppatches.begin();
@@ -701,14 +683,8 @@ void Cfilter::setDepthMaps(void)
 
     m_fm.m_count = 0;
     std::vector<std::thread> threads(m_fm.m_CPU);
-    for (auto& t : threads) t = std::thread(setDepthMapsThreadTmp, this);
+    for (auto& t : threads) t = std::thread(&Cfilter::setDepthMapsThread, this);
     for (auto& t : threads) t.join();
-}
-
-void* Cfilter::setDepthMapsThreadTmp(void* arg)
-{
-    ((Cfilter*)arg)->setDepthMapsThread();
-    return NULL;
 }
 
 void Cfilter::setDepthMapsThread(void)
@@ -794,24 +770,12 @@ void Cfilter::setDepthMapsVGridsVPGridsAddPatchV(const int additive)
     m_fm.m_count = 0;
 
     std::vector<std::thread> threads0(m_fm.m_CPU);
-    for (auto& t : threads0) t = std::thread(setVGridsVPGridsThreadTmp, this);
+    for (auto& t : threads0) t = std::thread(&Cfilter::setVGridsVPGridsThread, this);
     for (auto& t : threads0) t.join();
 
     std::vector<std::thread> threads1(m_fm.m_CPU);
-    for (auto& t : threads1) t = std::thread(addPatchVThreadTmp, this);
+    for (auto& t : threads1) t = std::thread(&Cfilter::addPatchVThread, this);
     for (auto& t : threads1) t.join();
-}
-
-void* Cfilter::setVGridsVPGridsThreadTmp(void* arg)
-{
-    ((Cfilter*)arg)->setVGridsVPGridsThread();
-    return NULL;
-}
-
-void* Cfilter::addPatchVThreadTmp(void* arg)
-{
-    ((Cfilter*)arg)->addPatchVThread();
-    return NULL;
 }
 
 void Cfilter::setVGridsVPGridsThread(void)

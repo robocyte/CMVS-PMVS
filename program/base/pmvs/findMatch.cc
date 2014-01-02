@@ -1,6 +1,5 @@
 #include <map>
 #include <ctime>
-#include <time.h>
 
 #include "findMatch.h"
 #include "detectFeatures.h"
@@ -81,8 +80,8 @@ void CfindMatch::init(const Soption& option)
     m_optim.init();
 
     // Init thresholds
-    m_angleThreshold0 = 60.0f * M_PI / 180.0f;
-    m_angleThreshold1 = 60.0f * M_PI / 180.0f;
+    m_angleThreshold0 = 60.0f * (float)M_PI / 180.0f;
+    m_angleThreshold1 = 60.0f * (float)M_PI / 180.0f;
 
     m_countThreshold0 = 2;
     m_countThreshold1 = 4;

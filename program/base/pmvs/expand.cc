@@ -14,11 +14,11 @@ Cexpand::Cexpand(CfindMatch& findMatch)
 {
 }
 
-void Cexpand::init(void)
+void Cexpand::init()
 {
 }
 
-void Cexpand::run(void)
+void Cexpand::run()
 {
     m_fm.m_count = 0;
     m_fm.m_jobs.clear();
@@ -46,8 +46,8 @@ void Cexpand::run(void)
     m_fm.m_pos.collectPatches(m_queue);
 
     std::cerr << "Expanding patches..." << std::flush;
-    std::vector<std::thread> threads(1/*m_fm.m_CPU*/);
-    for (auto& t : threads) t = std::thread(expandThreadTmp, this);
+    std::vector<std::thread> threads(m_fm.m_CPU);
+    for (auto& t : threads) t = std::thread(&Cexpand::expandThread, this);
     for (auto& t : threads) t.join();
 
     std::cerr << std::endl << "---- EXPANSION: " << (time(NULL) - starttime) << " secs ----" << std::endl;
@@ -68,13 +68,7 @@ void Cexpand::run(void)
               << 100 * (pass + fail1) / (float)trial << std::endl;
 }
 
-void* Cexpand::expandThreadTmp(void* arg)
-{
-    ((Cexpand*)arg)->expandThread();
-    return NULL;
-}
-
-void Cexpand::expandThread(void)
+void Cexpand::expandThread()
 {
     m_fm.m_lock.lock();
     const int id = m_fm.m_count++;
@@ -163,9 +157,9 @@ void Cexpand::findEmptyBlocks(const Ppatch& ppatch, std::vector<std::vector<Vec4
         f2 /= len;
 
         float angle = atan2(f2[1], f2[0]);
-        if (angle < 0.0) angle += 2 * M_PI;
+        if (angle < 0.0f) angle += 2 * (float)M_PI;
 
-        const float findex = angle / (2 * M_PI / dnum);
+        const float findex = angle / (2 * (float)M_PI / dnum);
         const int lindex = (int)floor(findex);
         const int hindex = lindex + 1;
     
@@ -182,7 +176,7 @@ void Cexpand::findEmptyBlocks(const Ppatch& ppatch, std::vector<std::vector<Vec4
         // If already failed, don't try, because we fail again.
         if (ppatch->m_dflag & (0x0001 << i)) continue;    
 
-        const float angle = 2 * M_PI * i / dnum;
+        const float angle = 2 * (float)M_PI * i / dnum;
         Vec4f canCoord = ppatch->m_coord + cos(angle) * radius * xdir + sin(angle) * radius * ydir;
         canCoords[i].push_back(canCoord);
     }
