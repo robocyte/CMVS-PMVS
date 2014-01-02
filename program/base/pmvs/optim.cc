@@ -775,10 +775,10 @@ bool Coptim::refinePatchBFGS2(Cpatch& patch, const int id, const int time)
     //Eigen::NumericalDiff<MY_F_LM_FUNCTOR> numDiff(functor);
     //Eigen::LevenbergMarquardt<Eigen::NumericalDiff<MY_F_LM_FUNCTOR>> lm(numDiff);
 
-    //lm.parameters.ftol = 1.0e-7;
-    //lm.parameters.xtol = 1.0e-7;
-    //lm.parameters.gtol = 1.0e-7;
-    //lm.parameters.epsfcn = 1.0e-5;
+    //lm.parameters.ftol   = 1.0e-12;
+    //lm.parameters.xtol   = 1.0e-12;
+    //lm.parameters.gtol   = 0.0;
+    //lm.parameters.epsfcn = 0.0;
     //lm.parameters.maxfev = 100;
 
     //auto ret = lm.minimize(xe);

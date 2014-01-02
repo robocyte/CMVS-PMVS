@@ -22,14 +22,10 @@ void Cexpand::run()
 {
     m_fm.m_count = 0;
     m_fm.m_jobs.clear();
-    m_ecounts.resize(m_fm.m_CPU);
-    m_fcounts0.resize(m_fm.m_CPU);
-    m_fcounts1.resize(m_fm.m_CPU);
-    m_pcounts.resize(m_fm.m_CPU);
-    fill(m_ecounts.begin(), m_ecounts.end(), 0);
-    fill(m_fcounts0.begin(), m_fcounts0.end(), 0);
-    fill(m_fcounts1.begin(), m_fcounts1.end(), 0);
-    fill(m_pcounts.begin(), m_pcounts.end(), 0);
+    m_ecounts.resize(m_fm.m_CPU, 0);
+    m_fcounts0.resize(m_fm.m_CPU, 0);
+    m_fcounts1.resize(m_fm.m_CPU, 0);
+    m_pcounts.resize(m_fm.m_CPU, 0);
 
     time_t starttime = time(NULL);
 
