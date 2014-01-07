@@ -31,7 +31,6 @@ INCLUDE_DIRECTORIES(
   ./thirdParty/
   ./thirdParty/gsl-1.13/include
   ./thirdParty/graclus1.2/metisLib
-  ./thirdParty/lmfit-3.2/lib
   ${ADDITIONAL_WIN_INCLUDES}
   ${EIGEN_INCLUDE_DIRS}
 )

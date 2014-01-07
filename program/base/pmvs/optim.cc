@@ -1,13 +1,10 @@
 #include <algorithm>
 #include <numeric>
 
-#include "unsupported/Eigen/NonLinearOptimization"
-
 #include <gsl/gsl_deriv.h>
 #include "findMatch.h"
 #include "optim.h"
 #include <cstdio>
-#include <lmmin.h>
 
 using namespace Patch;
 using namespace PMVS3;
@@ -50,21 +47,38 @@ namespace
         // int operator() (const InputType& x, ValueType* v, JacobianType* _j=0) const;
     };
 
-    struct MY_F_LM_FUNCTOR : LMFunctor<double>
+    struct MY_F_LM_FUNCTORd : LMFunctor<double>
     {
-        MY_F_LM_FUNCTOR(int data)
+        MY_F_LM_FUNCTORd(int id)
             : LMFunctor<double>(3, 3)
-            , m_data(data)
+            , m_id(id)
         {}
 
         int operator()(const Eigen::VectorXd &x, Eigen::VectorXd &fvec) const
         {
-            Coptim::my_f_lm(x.data(), 3, (void *)&m_data, fvec.data(), nullptr);
+            Coptim::my_f_lm(x, fvec, m_id);
 
             return 0;
         }
 
-        int m_data;
+        int m_id;
+    };
+
+    struct MY_F_LM_FUNCTORf : LMFunctor<float>
+    {
+        MY_F_LM_FUNCTORf(int id)
+            : LMFunctor<float>(3, 3)
+            , m_id(id)
+        {}
+
+        int operator()(const Eigen::VectorXf &x, Eigen::VectorXf &fvec) const
+        {
+            Coptim::my_f_lm(x, fvec, m_id);
+
+            return 0;
+        }
+
+        int m_id;
     };
 
 }
@@ -555,14 +569,70 @@ void Coptim::refinePatch(Cpatch& patch, const int id, const int time)
     // Try the faster version, if that fails try the slower one
     if(!refinePatchBFGS2(patch, id, 1000))
     {
-        refinePatchBFGS(patch, id, 1000);
+        //refinePatchBFGS(patch, id, 1000);
     }
 }
 
-void Coptim::my_f_lm(const double *par, int m_dat, const void *data, double *fvec, int *info)
+void Coptim::my_f_lm(const Eigen::VectorXd &par, Eigen::VectorXd &fvec, int id)
 {
     double xs[3] = {par[0], par[1], par[2]};
-    const int id = *((int*)data);
+
+    const double angle1 = xs[1] * m_one->m_ascalesT[id];
+    const double angle2 = xs[2] * m_one->m_ascalesT[id];
+
+    double ret = 0.0;
+
+    if (angle1 <= - M_PI / 2.0 || M_PI / 2.0 <= angle1 || angle2 <= - M_PI / 2.0 || M_PI / 2.0 <= angle2)
+    {
+        ret = 2.0;
+
+        fvec[0] = ret;
+        fvec[1] = ret;
+        fvec[2] = ret;
+
+        return;
+    }
+
+    Vec4f coord, normal;
+    m_one->decode(coord, normal, xs, id);
+
+    const int index = m_one->m_indexesT[id][0];
+    Vec4f pxaxis, pyaxis;
+    m_one->getPAxes(index, coord, normal, pxaxis, pyaxis);
+
+    const int size    = std::min(m_one->m_fm.m_tau, (int)m_one->m_indexesT[id].size());
+    const int mininum = std::min(m_one->m_fm.m_minImageNumThreshold, size);
+
+    for (int i = 0; i < size; ++i)
+    {
+        int flag;
+        flag = m_one->grabTex(coord, pxaxis, pyaxis, normal, m_one->m_indexesT[id][i], m_one->m_fm.m_wsize, m_one->m_texsT[id][i]);
+
+        if (flag == 0) m_one->normalize(m_one->m_texsT[id][i]);
+    }
+
+    if (m_one->m_texsT[id][0].empty()) ret = 2.0;
+
+    double ans = 0.0;
+    int denom  = 0;
+    for (int i = 1; i < size; ++i)
+    {
+        if (m_one->m_texsT[id][i].empty()) continue;
+        ans += (double)robustincc(1.0 - m_one->dot(m_one->m_texsT[id][0], m_one->m_texsT[id][i]));
+        denom++;
+    }
+
+    if (denom < mininum - 1) ret = 2.0;
+    else                     ret = ans / denom;
+
+    fvec[0] = ret;
+    fvec[1] = ret;
+    fvec[2] = ret;
+}
+
+void Coptim::my_f_lm(const Eigen::VectorXf &par, Eigen::VectorXf &fvec, int id)
+{
+    double xs[3] = {par[0], par[1], par[2]};
 
     const double angle1 = xs[1] * m_one->m_ascalesT[id];
     const double angle2 = xs[2] * m_one->m_ascalesT[id];
@@ -738,10 +808,8 @@ void Coptim::refinePatchBFGS(Cpatch& patch, const int id, const int time)
 
 bool Coptim::refinePatchBFGS2(Cpatch& patch, const int id, const int time)
 {
-    int idtmp = id;
-  
     m_centersT[id] = patch.m_coord;
-    m_raysT[id] = patch.m_coord - m_fm.m_pss.m_photos[patch.m_images[0]].m_center;
+    m_raysT[id]    = patch.m_coord - m_fm.m_pss.m_photos[patch.m_images[0]].m_center;
     unitize(m_raysT[id]);
     m_indexesT[id] = patch.m_images;
 
@@ -753,50 +821,25 @@ bool Coptim::refinePatchBFGS2(Cpatch& patch, const int id, const int time)
     double p[3];
     encode(patch.m_coord, patch.m_normal, p, id);
 
-    double x[3] = {p[0], p[1], p[2]};
+    Eigen::VectorXf x(3);
+    x << p[0], p[1], p[2];
 
-    lm_control_struct control = lm_control_float;
-    control.epsilon = 1e-5; // Default step size is too small for floats
-    control.printflags = 0;
+    MY_F_LM_FUNCTORf functor(id);
+    Eigen::NumericalDiff<MY_F_LM_FUNCTORf> numDiff(functor);
+    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<MY_F_LM_FUNCTORf>, float> lm(numDiff);
 
-    lm_status_struct status;
+    lm.parameters.ftol   = 1.0e-7;
+    lm.parameters.xtol   = 1.0e-7;
+    lm.parameters.maxfev = 100;
 
-    // This function requires data >= params, so the later 3 is a fudge
-    //std::cerr << "x before:    " << x[0] << " " << x[1] << " " << x[2] << std::endl;
-    //std::cerr << "begin\n";
-    lmmin(3, x, 3, (void *)&idtmp, my_f_lm, &control, &status, lm_printout_std);
-    //std::cerr << "x after old: " << x[0] << " " << x[1] << " " << x[2] << std::endl << std::endl;
-
-
-    //Eigen::VectorXd xe(3);
-    //xe << p[0], p[1], p[2];
-
-    //MY_F_LM_FUNCTOR functor(idtmp);
-    //Eigen::NumericalDiff<MY_F_LM_FUNCTOR> numDiff(functor);
-    //Eigen::LevenbergMarquardt<Eigen::NumericalDiff<MY_F_LM_FUNCTOR>> lm(numDiff);
-
-    //lm.parameters.ftol   = 1.0e-12;
-    //lm.parameters.xtol   = 1.0e-12;
-    //lm.parameters.gtol   = 0.0;
-    //lm.parameters.epsfcn = 0.0;
-    //lm.parameters.maxfev = 100;
-
-    //auto ret = lm.minimize(xe);
-    //std::cerr << "x after new: " << xe[0] << " " << xe[1] << " " << xe[2] << "    " << ret << " " << std::scientific << lm.iter << " " << lm.gnorm << std::endl;
-    //std::cerr << "end" << std::endl << std::endl;
-
-    //p[0] = xe[0];
-    //p[1] = xe[1];
-    //p[2] = xe[2];
-
-
+    auto status = lm.minimize(x);
 
     p[0] = x[0];
     p[1] = x[1];
     p[2] = x[2];
 
-    // Status.info 0 to 3 are "good", the rest are bad
-    if (status.info >= 0 && status.info <= 3)
+    // ret 0 to 3 are "good", the rest are bad
+    if (status >= 0 && status <= 3)
     {
         decode(patch.m_coord, patch.m_normal, p, id);
 

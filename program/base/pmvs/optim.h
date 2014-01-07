@@ -5,6 +5,8 @@
 #include "patch.h"
 #include <gsl/gsl_multimin.h>
 
+#include "unsupported/Eigen/NonLinearOptimization"
+
 namespace PMVS3
 {
 
@@ -61,7 +63,8 @@ public:
 
     //BFGS
     static double my_f(const gsl_vector *v, void *params);
-    static void my_f_lm(const double *par, int m_dat, const void *data, double *fvec, int *info);
+    static void my_f_lm(const Eigen::VectorXd &par, Eigen::VectorXd &fvec, int id);
+    static void my_f_lm(const Eigen::VectorXf &par, Eigen::VectorXf &fvec, int id);
 
     void encode(const Vec4f& coord, double* const vect, const int id) const;
     void encode(const Vec4f& coord, const Vec4f& normal, double* const vect, const int id) const;
