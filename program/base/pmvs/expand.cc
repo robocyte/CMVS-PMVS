@@ -229,7 +229,7 @@ int Cexpand::expandSub(const Ppatch& orgppatch, const int id, const Vec4f& canCo
         return 1;
     }
 
-    m_fm.m_optim.refinePatch(patch, id, 100);
+    m_fm.m_optim.refinePatchBFGS(patch, id);
 
     if (m_fm.m_optim.postProcess(patch, id, 0))
     {

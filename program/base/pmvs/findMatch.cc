@@ -7,13 +7,12 @@
 using namespace PMVS3;
 using namespace Patch;
 
-CfindMatch::CfindMatch(void)
-    : m_pos(*this), m_seed(*this), m_expand(*this), m_filter(*this), m_optim(*this)
-{
-    m_debug = 0;
-}
-
-CfindMatch::~CfindMatch()
+CfindMatch::CfindMatch()
+    : m_pos(*this)
+    , m_seed(*this)
+    , m_expand(*this)
+    , m_filter(*this)
+    , m_optim(*this)
 {
 }
 
@@ -46,12 +45,7 @@ void CfindMatch::init(const Soption& option)
     m_setEdge               = option.m_setEdge;
     m_sequenceThreshold     = option.m_sequence;
 
-    m_junit = 100;
-    m_visibleThreshold = 0.0f;
-    m_visibleThresholdLoose = 0.0f;
-
     m_tau = std::min(option.m_minImageNum * 2, m_num);
-    m_depth = 0;
 
     // Set target images and other images
     m_bindexes = option.m_bindexes;
@@ -69,8 +63,7 @@ void CfindMatch::init(const Soption& option)
 
     // Detect features if not yet done
     CdetectFeatures df;
-    const int fcsize = 16;
-    df.run(m_pss, m_num, fcsize, m_level, m_CPU);  
+    df.run(m_pss, m_num, 16, m_level, m_CPU);  
 
     // Initialize each core member. m_pos should be first
     m_pos.init();
@@ -83,18 +76,9 @@ void CfindMatch::init(const Soption& option)
     m_angleThreshold0 = 60.0f * (float)M_PI / 180.0f;
     m_angleThreshold1 = 60.0f * (float)M_PI / 180.0f;
 
-    m_countThreshold0 = 2;
-    m_countThreshold1 = 4;
-    m_countThreshold2 = 2;
-
-    m_neighborThreshold = 0.5f;
-    m_neighborThreshold1 = 1.0f;
-    m_neighborThreshold2 = 1.0f;
-
     m_maxAngleThreshold  = option.m_maxAngleThreshold;
     m_nccThresholdBefore = m_nccThreshold - 0.3f;
     m_quadThreshold      = option.m_quadThreshold;
-    m_epThreshold        = 2.0f;
 }
 
 int CfindMatch::insideBimages(const Vec4f& coord) const

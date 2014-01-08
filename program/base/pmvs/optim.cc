@@ -564,15 +564,6 @@ void Coptim::computeUnits(const Patch::Cpatch& patch, std::vector<int>& indexes,
     }
 }
 
-void Coptim::refinePatch(Cpatch& patch, const int id, const int time)
-{
-    // Try the faster version, if that fails try the slower one
-    if(!refinePatchBFGS2(patch, id, 1000))
-    {
-        //refinePatchBFGS(patch, id, 1000);
-    }
-}
-
 void Coptim::my_f_lm(const Eigen::VectorXd &par, Eigen::VectorXd &fvec, int id)
 {
     double xs[3] = {par[0], par[1], par[2]};
@@ -687,126 +678,7 @@ void Coptim::my_f_lm(const Eigen::VectorXf &par, Eigen::VectorXf &fvec, int id)
     fvec[2] = ret;
 }
 
-double Coptim::my_f(const gsl_vector *v, void *params)
-{
-    double xs[3] = {gsl_vector_get(v, 0),
-                    gsl_vector_get(v, 1),
-                    gsl_vector_get(v, 2)};
-    const int id = *((int*)params);
-
-    const float angle1 = xs[1] * m_one->m_ascalesT[id];
-    const float angle2 = xs[2] * m_one->m_ascalesT[id];
-
-    if (angle1 <= - M_PI / 2.0f || M_PI / 2.0f <= angle1 || angle2 <= - M_PI / 2.0f || M_PI / 2.0f <= angle2) return 2.0f;
-
-    Vec4f coord, normal;
-    m_one->decode(coord, normal, xs, id);
-
-    const int index = m_one->m_indexesT[id][0];
-    Vec4f pxaxis, pyaxis;
-    m_one->getPAxes(index, coord, normal, pxaxis, pyaxis);
-
-    const int size = std::min(m_one->m_fm.m_tau, (int)m_one->m_indexesT[id].size());
-    const int mininum = std::min(m_one->m_fm.m_minImageNumThreshold, size);
-
-    for (int i = 0; i < size; ++i)
-    {
-        int flag;
-        flag = m_one->grabTex(coord, pxaxis, pyaxis, normal, m_one->m_indexesT[id][i], m_one->m_fm.m_wsize, m_one->m_texsT[id][i]);
-
-        if (flag == 0) m_one->normalize(m_one->m_texsT[id][i]);
-    }
-
-    if (m_one->m_texsT[id][0].empty()) return 2.0f;
-      
-    double ans = 0.0f;
-    int denom = 0;
-    for (int i = 1; i < size; ++i)
-    {
-        if (m_one->m_texsT[id][i].empty())
-        continue;
-        ans +=
-        robustincc(1.0f - m_one->dot(m_one->m_texsT[id][0], m_one->m_texsT[id][i]));
-        denom++;
-    }
-
-    if (denom < mininum - 1) return 2.0f;
-    else                     return ans / denom;
-}
-
-void Coptim::refinePatchBFGS(Cpatch& patch, const int id, const int time)
-{
-    int status;
-    const gsl_multimin_fminimizer_type *T;
-    gsl_multimin_fminimizer *s;
-
-    gsl_multimin_function my_func;
-    int idtmp = id;
-    my_func.n = 3;
-
-    my_func.f = &my_f;
-    my_func.params = (void *)&idtmp;
-
-    m_centersT[id] = patch.m_coord;
-    m_raysT[id] = patch.m_coord -
-    m_fm.m_pss.m_photos[patch.m_images[0]].m_center;
-    unitize(m_raysT[id]);
-    m_indexesT[id] = patch.m_images;
-
-    m_dscalesT[id] = patch.m_dscale;
-    m_ascalesT[id] = (float)M_PI / 48.0f; //patch.m_ascale;
-
-    setWeightsT(patch, id);
-
-    double p[3];
-    encode(patch.m_coord, patch.m_normal, p, id);
-
-    gsl_vector* x = gsl_vector_alloc(3);
-    gsl_vector_set(x, 0, p[0]);
-    gsl_vector_set(x, 1, p[1]);
-    gsl_vector_set(x, 2, p[2]);
-
-    gsl_vector* ss = gsl_vector_alloc(3);
-    gsl_vector_set_all(ss, 1.5);
-
-    T = gsl_multimin_fminimizer_nmsimplex;
-    s = gsl_multimin_fminimizer_alloc(T, 3);
-    gsl_multimin_fminimizer_set(s, &my_func, x, ss);
-
-    int iter = 0;
-    do
-    {
-        ++iter;
-        status = gsl_multimin_fminimizer_iterate(s);
-
-        if (status) break;
-
-        double size = gsl_multimin_fminimizer_size(s);
-        status = gsl_multimin_test_size(size, 1e-3);
-    } while (status == GSL_CONTINUE && iter < time);
-
-    p[0] = gsl_vector_get(s->x, 0);
-    p[1] = gsl_vector_get(s->x, 1);
-    p[2] = gsl_vector_get(s->x, 2);
-
-    if (status == GSL_SUCCESS)
-    {
-        decode(patch.m_coord, patch.m_normal, p, id);
-
-        patch.m_ncc = 1.0f - unrobustincc(computeINCC(patch.m_coord, patch.m_normal, patch.m_images, id, 1));
-    } else
-    {
-        patch.m_images.clear();
-    }
-
-    ++m_status[status + 2];
-
-    gsl_multimin_fminimizer_free(s);
-    gsl_vector_free (x);
-    gsl_vector_free (ss);
-}
-
-bool Coptim::refinePatchBFGS2(Cpatch& patch, const int id, const int time)
+bool Coptim::refinePatchBFGS(Cpatch& patch, const int id)
 {
     m_centersT[id] = patch.m_coord;
     m_raysT[id]    = patch.m_coord - m_fm.m_pss.m_photos[patch.m_images[0]].m_center;

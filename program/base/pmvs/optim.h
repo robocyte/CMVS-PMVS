@@ -31,9 +31,7 @@ public:
     int preProcess(Patch::Cpatch& patch, const int id, const int seed);
     int postProcess(Patch::Cpatch& patch, const int id, const int seed);
 
-    void refinePatch(Patch::Cpatch& patch, const int id, const int time);
-    void refinePatchBFGS(Patch::Cpatch& patch, const int id, const int time);
-    bool refinePatchBFGS2(Patch::Cpatch& patch, const int id, const int time); // LM version
+    bool refinePatchBFGS(Patch::Cpatch& patch, const int id);
 
     void setRefImage(Patch::Cpatch& patch, const int id);
 
@@ -62,7 +60,6 @@ public:
     float dot(const std::vector<float>& tex0, const std::vector<float>& tex1) const;
 
     //BFGS
-    static double my_f(const gsl_vector *v, void *params);
     static void my_f_lm(const Eigen::VectorXd &par, Eigen::VectorXd &fvec, int id);
     static void my_f_lm(const Eigen::VectorXf &par, Eigen::VectorXf &fvec, int id);
 
