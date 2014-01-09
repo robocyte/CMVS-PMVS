@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "patch.h"
-#include <gsl/gsl_multimin.h>
 
 #include "unsupported/Eigen/NonLinearOptimization"
 
