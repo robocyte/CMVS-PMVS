@@ -89,7 +89,7 @@ protected:
     std::vector<float> m_vect0T;  
     std::vector<Vec4f> m_centersT;
     std::vector<Vec4f> m_raysT;
-    std::vector<std::vector<int> > m_indexesT;
+    std::vector<std::vector<int>> m_indexesT;
     std::vector<float> m_dscalesT;
     std::vector<float> m_ascalesT;
 

@@ -49,31 +49,15 @@ namespace
         // int operator() (const InputType& x, ValueType* v, JacobianType* _j=0) const;
     };
 
-    struct MY_F_LM_FUNCTORd : LMFunctor<double>
+    template<typename Scalar>
+    struct LMRefinePatch : LMFunctor<Scalar>
     {
-        MY_F_LM_FUNCTORd(int id)
-            : LMFunctor<double>(3, 3)
+        explicit LMRefinePatch(int id)
+            : LMFunctor<Scalar>(3, 3)
             , m_id(id)
         {}
 
-        int operator()(const Eigen::VectorXd &x, Eigen::VectorXd &fvec) const
-        {
-            Coptim::my_f_lm(x, fvec, m_id);
-
-            return 0;
-        }
-
-        int m_id;
-    };
-
-    struct MY_F_LM_FUNCTORf : LMFunctor<float>
-    {
-        MY_F_LM_FUNCTORf(int id)
-            : LMFunctor<float>(3, 3)
-            , m_id(id)
-        {}
-
-        int operator()(const Eigen::VectorXf &x, Eigen::VectorXf &fvec) const
+        int operator()(const Eigen::Matrix<Scalar, Eigen::Dynamic, 1, 0>& x, Eigen::Matrix<Scalar, Eigen::Dynamic, 1, 0>& fvec) const
         {
             Coptim::my_f_lm(x, fvec, m_id);
 
@@ -698,9 +682,9 @@ bool Coptim::refinePatchBFGS(Cpatch& patch, const int id)
     Eigen::VectorXf x(3);
     x << p[0], p[1], p[2];
 
-    MY_F_LM_FUNCTORf functor(id);
-    Eigen::NumericalDiff<MY_F_LM_FUNCTORf> numDiff(functor);
-    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<MY_F_LM_FUNCTORf>, float> lm(numDiff);
+    LMRefinePatch<float> functor(id);
+    Eigen::NumericalDiff<LMRefinePatch<float>> numDiff(functor);
+    Eigen::LevenbergMarquardt<Eigen::NumericalDiff<LMRefinePatch<float>>, float> lm(numDiff);
 
     lm.parameters.ftol   = 1.0e-7;
     lm.parameters.xtol   = 1.0e-7;
