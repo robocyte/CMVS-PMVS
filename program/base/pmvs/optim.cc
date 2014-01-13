@@ -416,7 +416,7 @@ void Coptim::sortImages(Cpatch& patch) const
 
 int Coptim::check(Cpatch& patch)
 {
-    const float gain = m_fm.m_filter.computeGain(patch, 1);
+    const float gain = m_fm.m_filter.computeGain(patch);
     patch.m_tmp = gain;
 
     if (gain < 0.0)

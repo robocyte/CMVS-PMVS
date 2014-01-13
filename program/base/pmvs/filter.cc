@@ -11,7 +11,8 @@
 using namespace Patch;
 using namespace PMVS3;
 
-Cfilter::Cfilter(CfindMatch& findMatch) : m_fm(findMatch)
+Cfilter::Cfilter(CfindMatch& findMatch)
+    : m_fm(findMatch)
 {
 }
 
@@ -89,7 +90,7 @@ void Cfilter::filterOutside(void)
               << "%)\t" << (tv - curtime) / CLOCKS_PER_SEC << " secs" << std::endl;
 }
 
-float Cfilter::computeGain(const Patch::Cpatch& patch, const int lock)
+float Cfilter::computeGain(const Patch::Cpatch& patch)
 {
     float gain = patch.score2(m_fm.m_nccThreshold);
 
@@ -104,14 +105,15 @@ float Cfilter::computeGain(const Patch::Cpatch& patch, const int lock)
         const int index2 = iy * m_fm.m_pos.m_gwidths[index] + ix;
 
         float maxpressure = 0.0f;
-        if (lock) m_fm.m_imageLocks[index].lock();
-
-        for (int j = 0; j < (int)m_fm.m_pos.m_pgrids[index][index2].size(); ++j)
+        
         {
-            if (!m_fm.isNeighbor(patch, *m_fm.m_pos.m_pgrids[index][index2][j], m_fm.m_neighborThreshold1))
-            maxpressure = std::max(maxpressure, m_fm.m_pos.m_pgrids[index][index2][j]->m_ncc - m_fm.m_nccThreshold);
+            std::lock_guard<std::mutex> lock(m_fm.m_imageLocks[index]);
+            for (int j = 0; j < (int)m_fm.m_pos.m_pgrids[index][index2].size(); ++j)
+            {
+                if (!m_fm.isNeighbor(patch, *m_fm.m_pos.m_pgrids[index][index2][j], m_fm.m_neighborThreshold1))
+                maxpressure = std::max(maxpressure, m_fm.m_pos.m_pgrids[index][index2][j]->m_ncc - m_fm.m_nccThreshold);
+            }
         }
-        if (lock) m_fm.m_imageLocks[index].unlock();
 
         gain -= maxpressure;
     }
@@ -129,17 +131,17 @@ float Cfilter::computeGain(const Patch::Cpatch& patch, const int lock)
         const int index2 = iy * m_fm.m_pos.m_gwidths[index] + ix;
         float maxpressure = 0.0f;      
 
-        if (lock) m_fm.m_imageLocks[index].lock();
-
-        for (int j = 0; j < (int)m_fm.m_pos.m_pgrids[index][index2].size(); ++j)
         {
-            const float bdepth = m_fm.m_pss.computeDepth(index, m_fm.m_pos.m_pgrids[index][index2][j]->m_coord);
-            if (pdepth < bdepth && !m_fm.isNeighbor(patch, *m_fm.m_pos.m_pgrids[index][index2][j], m_fm.m_neighborThreshold1))
+            std::lock_guard<std::mutex> lock(m_fm.m_imageLocks[index]);
+            for (int j = 0; j < (int)m_fm.m_pos.m_pgrids[index][index2].size(); ++j)
             {
-                maxpressure = std::max(maxpressure, m_fm.m_pos.m_pgrids[index][index2][j]->m_ncc - m_fm.m_nccThreshold);
+                const float bdepth = m_fm.m_pss.computeDepth(index, m_fm.m_pos.m_pgrids[index][index2][j]->m_coord);
+                if (pdepth < bdepth && !m_fm.isNeighbor(patch, *m_fm.m_pos.m_pgrids[index][index2][j], m_fm.m_neighborThreshold1))
+                {
+                    maxpressure = std::max(maxpressure, m_fm.m_pos.m_pgrids[index][index2][j]->m_ncc - m_fm.m_nccThreshold);
+                }
             }
         }
-        if (lock) m_fm.m_imageLocks[index].unlock();
 
         gain -= maxpressure;
     }
@@ -304,8 +306,8 @@ void Cfilter::filterExact(void)
 void Cfilter::filterExactThread(void)
 {
     const int psize = (int)m_fm.m_pos.m_ppatches.size();
-    std::vector<std::vector<int> > newimages, removeimages;
-    std::vector<std::vector<TVec2<int> > > newgrids, removegrids;
+    std::vector<std::vector<int>> newimages, removeimages;
+    std::vector<std::vector<TVec2<int>>> newgrids, removegrids;
     newimages.resize(psize);  removeimages.resize(psize);
     newgrids.resize(psize);   removegrids.resize(psize);
 
@@ -355,7 +357,7 @@ void Cfilter::filterExactThread(void)
         }
     }
 
-    m_fm.m_lock.lock();
+    std::lock_guard<std::mutex> lock(m_fm.m_lock);
     for (int p = 0; p < psize; ++p)
     {
         m_newimages[p].insert(m_newimages[p].end(), newimages[p].begin(), newimages[p].end());
@@ -363,7 +365,6 @@ void Cfilter::filterExactThread(void)
         m_removeimages[p].insert(m_removeimages[p].end(), removeimages[p].begin(), removeimages[p].end());
         m_removegrids[p].insert(m_removegrids[p].end(), removegrids[p].begin(), removegrids[p].end());
     }
-    m_fm.m_lock.unlock();
 }
 
 void Cfilter::filterNeighborThread(void)
@@ -372,13 +373,16 @@ void Cfilter::filterNeighborThread(void)
     while (1)
     {
         int jtmp = -1;
-        m_fm.m_lock.lock();
-        if (!m_fm.m_jobs.empty())
+
         {
-            jtmp = m_fm.m_jobs.front();
-            m_fm.m_jobs.pop_front();
+            std::lock_guard<std::mutex> lock(m_fm.m_lock);
+            if (!m_fm.m_jobs.empty())
+            {
+                jtmp = m_fm.m_jobs.front();
+                m_fm.m_jobs.pop_front();
+            }
         }
-        m_fm.m_lock.unlock();
+
         if (jtmp == -1) break;
 
         const int begin = m_fm.m_junit * jtmp;
@@ -676,10 +680,7 @@ void Cfilter::filterSmallGroupsSub(const int pid, const int id, std::vector<int>
 
 void Cfilter::setDepthMaps(void)
 {
-    for (int index = 0; index < m_fm.m_tnum; ++index)
-    {
-        std::fill(m_fm.m_pos.m_dpgrids[index].begin(), m_fm.m_pos.m_dpgrids[index].end(), m_fm.m_pos.m_MAXDEPTH);
-    }
+    for (auto& patches : m_fm.m_pos.m_dpgrids) std::fill(patches.begin(), patches.end(), m_fm.m_pos.m_MAXDEPTH);
 
     m_fm.m_count = 0;
     std::vector<std::thread> threads(m_fm.m_CPU);
@@ -743,27 +744,15 @@ void Cfilter::setDepthMapsVGridsVPGridsAddPatchV(const int additive)
     m_fm.m_pos.collectPatches();
     setDepthMaps();
 
-    // clear m_vpgrids
-    for (int index = 0; index < m_fm.m_tnum; ++index)
-    {
-        auto bvvp = m_fm.m_pos.m_vpgrids[index].begin();
-        auto evvp = m_fm.m_pos.m_vpgrids[index].end();
-        while (bvvp != evvp)
-        {
-            (*bvvp).clear();
-            ++bvvp;
-        }
-    }
+    for (auto& image : m_fm.m_pos.m_vpgrids)
+        for (auto& patchvec : image) patchvec.clear();
 
     if (additive == 0)
     {
-        auto bpatch = m_fm.m_pos.m_ppatches.begin();
-        auto epatch = m_fm.m_pos.m_ppatches.end();
-        while (bpatch != epatch)
+        for (auto& patch : m_fm.m_pos.m_ppatches)
         {
-            (*bpatch)->m_vimages.clear();
-            (*bpatch)->m_vgrids.clear();
-            ++bpatch;
+            patch->m_vimages.clear();
+            patch->m_vgrids.clear();
         }
     }
 

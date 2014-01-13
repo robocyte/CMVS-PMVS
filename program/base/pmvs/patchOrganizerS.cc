@@ -74,7 +74,7 @@ void CpatchOrganizerS::init(void)
             m_vpgrids[index].resize(gwidth * gheight);
             m_dpgrids[index].resize(gwidth * gheight);
             m_counts[index].resize(gwidth  * gheight);
-            fill(m_dpgrids[index].begin(), m_dpgrids[index].end(), m_MAXDEPTH);
+            std::fill(m_dpgrids[index].begin(), m_dpgrids[index].end(), m_MAXDEPTH);
         }
     }
 }
@@ -140,21 +140,19 @@ void CpatchOrganizerS::collectPatches(const int target)
     }
 
     int count = 0;
-    for (int index = 0; index < m_fm.m_tnum; ++index)
+    for (auto& image : m_pgrids)
     {
-        for (int i = 0; i < (int)m_pgrids[index].size(); ++i)
+        for (auto& grid : image)
         {
-            auto begin = m_pgrids[index][i].begin();
-            while (begin != m_pgrids[index][i].end())
+            for (auto& patch : grid)
             {
-                if ((*begin)->m_id == -1)
+                if (patch->m_id == -1)
                 {
-                    (*begin)->m_id = count++;
+                    patch->m_id = count++;
 
-                    if (target == 0 || (*begin)->m_fix == 0)
-                    m_ppatches.push_back(*begin);
+                    if (target == 0 || patch->m_fix == 0)
+                    m_ppatches.push_back(patch);
                 }
-                ++begin;
             }
         }
     }
@@ -162,19 +160,17 @@ void CpatchOrganizerS::collectPatches(const int target)
 
 void CpatchOrganizerS::collectPatches(std::priority_queue<Patch::Ppatch, std::vector<Patch::Ppatch>, P_compare>& pqpatches)
 {
-    for (int index = 0; index < m_fm.m_tnum; ++index)
+    for (auto& image : m_pgrids)
     {
-        for (int i = 0; i < (int)m_pgrids[index].size(); ++i)
+        for (auto& grid : image)
         {
-            auto begin = m_pgrids[index][i].begin();
-            while (begin != m_pgrids[index][i].end())
+            for (auto& patch : grid)
             {
-                if ((*begin)->m_flag == 0)
+                if (patch->m_flag == 0)
                 {
-                    (*begin)->m_flag = 1;
-                    pqpatches.push(*begin);
+                    patch->m_flag = 1;
+                    pqpatches.push(patch);
                 }
-                ++begin;
             }
         }
     }
@@ -183,19 +179,15 @@ void CpatchOrganizerS::collectPatches(std::priority_queue<Patch::Ppatch, std::ve
 void CpatchOrganizerS::collectPatches(const int index, std::priority_queue<Patch::Ppatch, std::vector<Patch::Ppatch>, P_compare>& pqpatches)
 {
     m_fm.m_imageLocks[index].lock();
-    for (int i = 0; i < (int)m_pgrids[index].size(); ++i)
+    for (auto& grid : m_pgrids[index])
     {
-        auto begin = m_pgrids[index][i].begin();
-        auto end = m_pgrids[index][i].end();
-
-        while (begin != end)
+        for (auto& patch : grid)
         {
-            if ((*begin)->m_images[0] == index && (*begin)->m_flag == 0)
+            if (patch->m_images[0] == index && patch->m_flag == 0)
             {
-                (*begin)->m_flag = 1;
-                pqpatches.push(*begin);
+                patch->m_flag = 1;
+                pqpatches.push(patch);
             }
-            ++begin;
         }
     }
     m_fm.m_imageLocks[index].unlock();

@@ -77,16 +77,18 @@ void Cexpand::expandThread()
     {
         Ppatch ppatch;
         int empty = 0;
-        m_fm.m_lock.lock();
-        if (m_queue.empty())
+
         {
-            empty = 1;
-        } else
-        {
-            ppatch = m_queue.top();
-            m_queue.pop();
+            std::lock_guard<std::mutex> lock(m_fm.m_lock);
+            if (m_queue.empty())
+            {
+                empty = 1;
+            } else
+            {
+                ppatch = m_queue.top();
+                m_queue.pop();
+            }
         }
-        m_fm.m_lock.unlock();
 
         if (empty) break;
 
@@ -249,9 +251,8 @@ int Cexpand::expandSub(const Ppatch& orgppatch, const int id, const Vec4f& canCo
 
     if (add)
     {
-        m_fm.m_lock.lock();
+        std::lock_guard<std::mutex> lock(m_fm.m_lock);
         m_queue.push(ppatch);
-        m_fm.m_lock.unlock();
     }
 
     return 0;
@@ -287,9 +288,11 @@ int Cexpand::checkCounts(Patch::Cpatch& patch)
         const int index2 = iy * m_fm.m_pos.m_gwidths[index] + ix;
 
         int flag = 0;
-        m_fm.m_imageLocks[index].lock();
-        if (!m_fm.m_pos.m_pgrids[index][index2].empty()) flag = 1;
-        m_fm.m_imageLocks[index].unlock();
+        {
+            std::lock_guard<std::mutex> lock(m_fm.m_imageLocks[index]);
+            if (!m_fm.m_pos.m_pgrids[index][index2].empty()) flag = 1;
+        }
+        
         if (flag)
         {
             ++full;
@@ -298,12 +301,14 @@ int Cexpand::checkCounts(Patch::Cpatch& patch)
             continue;
         }
 
-        m_fm.m_countLocks[index].lock();
-        if (m_fm.m_countThreshold1 <= m_fm.m_pos.m_counts[index][index2])   ++full;
-        else                                                                ++empty;
+        {
+            std::lock_guard<std::mutex> lock(m_fm.m_countLocks[index]);
+            if (m_fm.m_countThreshold1 <= m_fm.m_pos.m_counts[index][index2])   ++full;
+            else                                                                ++empty;
+        }
 
-        m_fm.m_countLocks[index].unlock();
-        ++begin;    ++begin2;
+        ++begin;
+        ++begin2;
     }
 
     //First expansion is expensive and make the condition strict
@@ -349,12 +354,12 @@ int Cexpand::updateCounts(const Cpatch& patch)
 
             const int index2 = iy * m_fm.m_pos.m_gwidths[index] + ix;
 
-            m_fm.m_countLocks[index].lock();
-            if (m_fm.m_countThreshold1 <= m_fm.m_pos.m_counts[index][index2])   ++full;
-            else                                                                ++empty;
-            ++m_fm.m_pos.m_counts[index][index2];
-
-            m_fm.m_countLocks[index].unlock();
+            {
+                std::lock_guard<std::mutex> lock(m_fm.m_countLocks[index]);
+                if (m_fm.m_countThreshold1 <= m_fm.m_pos.m_counts[index][index2])   ++full;
+                else                                                                ++empty;
+                ++m_fm.m_pos.m_counts[index][index2];
+            }
 
             ++begin;
             ++begin2;
@@ -369,13 +374,6 @@ int Cexpand::updateCounts(const Cpatch& patch)
         while (begin != end)
         {
             const int index = *begin;
-#ifdef DEBUG
-            if (m_fm.m_tnum <= index)
-            {
-                std::cerr << "Impossible in updateCounts" << std::endl;
-                std::exit(1);
-            }
-#endif
 
             const int ix = (*begin2)[0];
             const int iy = (*begin2)[1];
@@ -388,11 +386,13 @@ int Cexpand::updateCounts(const Cpatch& patch)
 
             const int index2 = iy * m_fm.m_pos.m_gwidths[index] + ix;
 
-            m_fm.m_countLocks[index].lock();
-            if (m_fm.m_countThreshold1 <= m_fm.m_pos.m_counts[index][index2])   ++full;
-            else                                                                ++empty;
-            ++m_fm.m_pos.m_counts[index][index2];        
-            m_fm.m_countLocks[index].unlock();
+            {
+                std::lock_guard<std::mutex> lock(m_fm.m_countLocks[index]);
+                if (m_fm.m_countThreshold1 <= m_fm.m_pos.m_counts[index][index2])   ++full;
+                else                                                                ++empty;
+                ++m_fm.m_pos.m_counts[index][index2];        
+            }
+
             ++begin;
             ++begin2;
         }

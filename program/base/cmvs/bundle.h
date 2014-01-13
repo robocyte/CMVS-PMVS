@@ -19,7 +19,7 @@ struct Sadd
         : m_image(image)
         , m_gain(gain)
     {
-    };
+    }
 
     int   m_image;
     float m_gain;

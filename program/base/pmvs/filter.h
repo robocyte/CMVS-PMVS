@@ -17,7 +17,7 @@ public:
     void init(void);
     void run(void);
 
-    float computeGain(const Patch::Cpatch& patch, const int lock);
+    float computeGain(const Patch::Cpatch& patch);
 
     int filterQuad(const Patch::Cpatch& patch, const std::vector<Patch::Ppatch>& neighbors) const;
 

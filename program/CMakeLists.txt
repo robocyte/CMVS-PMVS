@@ -17,11 +17,11 @@ IF (MSVC)
     "MS Visual Studio: Link to static C-Run Time Library." ON)
 ENDIF (MSVC)
 
-IF(WIN32)
+IF (WIN32)
   SET(ADDITIONAL_WIN_INCLUDES 
         ./thirdParty/miniBoost
         ./thirdParty/jpeg)
-ENDIF(WIN32)
+ENDIF (WIN32)
 
 INCLUDE_DIRECTORIES(
   ./program/base/image
@@ -34,18 +34,14 @@ INCLUDE_DIRECTORIES(
   ${EIGEN_INCLUDE_DIRS}
 )
 
+IF (WIN32)
 
-IF(WIN32)
-
-
-ELSE(WIN32)
-
+ELSE (WIN32)
   FIND_PACKAGE(Eigen REQUIRED)
   FIND_PACKAGE(JPEG REQUIRED)
   FIND_PACKAGE(Boost REQUIRED)
   SET(PRECOMPILED_LIBS
     ${JPEG_LIBRARY})
-
 ENDIF (WIN32)
 
 IF (OPENMP)
@@ -59,14 +55,19 @@ IF (MSVC)
   # Disable warning about the insecurity of using "std::copy"
   ADD_DEFINITIONS("/wd4996")
 
+  LIST(APPEND C_CXX_FLAGS
+    CMAKE_CXX_FLAGS
+    CMAKE_CXX_FLAGS_DEBUG
+    CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_MINSIZEREL
+    CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+
   FOREACH(FLAG_VAR ${C_CXX_FLAGS})
     IF (MSVC_USE_STATIC_CRT)
-      # Use static CRT.
       IF (${FLAG_VAR} MATCHES "/MD")
         STRING(REGEX REPLACE "/MD" "/MT" ${FLAG_VAR} "${${FLAG_VAR}}")
       ENDIF (${FLAG_VAR} MATCHES "/MD")
     ELSE (MSVC_USE_STATIC_CRT)
-      # Use shared, not static, CRT.
       IF (${FLAG_VAR} MATCHES "/MT")
         STRING(REGEX REPLACE "/MT" "/MD" ${FLAG_VAR} "${${FLAG_VAR}}")
       ENDIF (${FLAG_VAR} MATCHES "/MT")
