@@ -153,7 +153,7 @@ void Coptim::collectImages(const int index, std::vector<int>& indexes) const
 
         if (ray0 * ray1 < cos(m_fm.m_angleThreshold0)) continue;
 
-        candidates.push_back(Vec2f(m_fm.m_pss.m_distances[index][indextmp], indextmp));
+        candidates.push_back(Vec2f(m_fm.m_pss.m_distances[index][indextmp], (float)indextmp));
     }
 
     std::sort(candidates.begin(), candidates.end(), Svec2cmp<float>());
@@ -305,7 +305,7 @@ void Coptim::setRefImage(Cpatch& patch, const int id)
     setINCCs(patch, inccs, indexes, id, 1);
 
     int refindex = -1;
-    float refncc = INT_MAX/2;
+    float refncc = INT_MAX/2.0f;
     for (int i = 0; i < (int)indexes.size(); ++i)
     {
         const float sum = std::accumulate(inccs[i].begin(), inccs[i].end(), 0.0f);
@@ -334,7 +334,7 @@ void Coptim::sortImages(Cpatch& patch) const
     const int newm = 1;
     if (newm == 1)
     {
-        const float threshold = 1.0f - cos(10.0 * M_PI / 180.0);
+        const float threshold = 1.0f - (float)cos(10.0 * M_PI / 180.0);
         std::vector<int> indexes, indexes2;
         std::vector<float> units, units2;
         std::vector<Vec4f> rays, rays2;
@@ -620,9 +620,9 @@ void Coptim::my_f_lm(const Eigen::VectorXf &par, Eigen::VectorXf &fvec, int id)
     {
         ret = 2.0;
 
-        fvec[0] = ret;
-        fvec[1] = ret;
-        fvec[2] = ret;
+        fvec[0] = (float)ret;
+        fvec[1] = (float)ret;
+        fvec[2] = (float)ret;
 
         return;
     }
@@ -659,9 +659,9 @@ void Coptim::my_f_lm(const Eigen::VectorXf &par, Eigen::VectorXf &fvec, int id)
     if (denom < mininum - 1) ret = 2.0;
     else                     ret = ans / denom;
 
-    fvec[0] = ret;
-    fvec[1] = ret;
-    fvec[2] = ret;
+    fvec[0] = (float)ret;
+    fvec[1] = (float)ret;
+    fvec[2] = (float)ret;
 }
 
 bool Coptim::refinePatchBFGS(Cpatch& patch, const int id)

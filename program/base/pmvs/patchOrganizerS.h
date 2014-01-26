@@ -22,12 +22,8 @@ public:
     void init(void);
     void collectPatches(const int target = 0);
     void collectPatches(std::priority_queue<Patch::Ppatch, std::vector<Patch::Ppatch>, P_compare>& pqpatches);
-
-    void collectPatches(const int index, std::priority_queue<Patch::Ppatch, std::vector<Patch::Ppatch>, P_compare>& pqpatches);
-    void collectNonFixPatches(const int index, std::vector<Patch::Ppatch>& ppatches);
-
+    
     void writePatches2(const std::string prefix);
-
     void writePLY(const std::vector<Patch::Ppatch>& patches, const std::string filename);
 
     void clearCounts(void);
@@ -49,26 +45,17 @@ public:
 
     void setScales(Patch::Cpatch& patch) const;
 
-    float computeUnit(const Patch::Cpatch& patch) const;
-
     // Change the contents of m_images from images to indexes
     void image2index(Patch::Cpatch& patch);
     void index2image(Patch::Cpatch& patch);
 
-    // Widths of grids
-    std::vector<int> m_gwidths;
-    std::vector<int> m_gheights;
-
+    std::vector<int>                                     m_gwidths;
+    std::vector<int>                                     m_gheights;
     std::vector<std::vector<std::vector<Patch::Ppatch>>> m_pgrids;
     std::vector<std::vector<std::vector<Patch::Ppatch>>> m_vpgrids;
-
-    std::vector<std::vector<Patch::Ppatch>> m_dpgrids;  // Closest patch
-
-    // All the patches in the current level of m_pgrids 
-    std::vector<Patch::Ppatch> m_ppatches;
-
-    // Check how many times patch optimization was performed for expansion
-    std::vector<std::vector<unsigned char>> m_counts;
+    std::vector<std::vector<Patch::Ppatch>>              m_dpgrids;     // Closest patch
+    std::vector<Patch::Ppatch>                           m_ppatches;    // All the patches in the current level of m_pgrids 
+    std::vector<std::vector<unsigned char>>              m_counts;       // Check how many times patch optimization was performed for expansion
 
     static Patch::Ppatch m_MAXDEPTH;
     static Patch::Ppatch m_BACKGROUND;

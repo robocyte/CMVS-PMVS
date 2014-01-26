@@ -176,42 +176,6 @@ void CpatchOrganizerS::collectPatches(std::priority_queue<Patch::Ppatch, std::ve
     }
 }
 
-void CpatchOrganizerS::collectPatches(const int index, std::priority_queue<Patch::Ppatch, std::vector<Patch::Ppatch>, P_compare>& pqpatches)
-{
-    m_fm.m_imageLocks[index].lock();
-    for (auto& grid : m_pgrids[index])
-    {
-        for (auto& patch : grid)
-        {
-            if (patch->m_images[0] == index && patch->m_flag == 0)
-            {
-                patch->m_flag = 1;
-                pqpatches.push(patch);
-            }
-        }
-    }
-    m_fm.m_imageLocks[index].unlock();
-}
-
-// Should be used only for writing
-void CpatchOrganizerS::collectNonFixPatches(const int index, std::vector<Patch::Ppatch>& ppatches)
-{
-    m_fm.m_imageLocks[index].lock();
-    for (int i = 0; i < (int)m_pgrids[index].size(); ++i)
-    {
-        auto begin = m_pgrids[index][i].begin();
-        auto end = m_pgrids[index][i].end();
-
-        while (begin != end)
-        {
-            if ((*begin)->m_images[0] == index && (*begin)->m_fix == 0) ppatches.push_back(*begin);
-
-            ++begin;
-        }
-    }
-    m_fm.m_imageLocks[index].unlock();
-}
-
 void CpatchOrganizerS::clearFlags(void)
 {
     auto bppatch = m_ppatches.begin();
@@ -597,17 +561,6 @@ void CpatchOrganizerS::findNeighbors(const Patch::Cpatch& patch, std::vector<Pat
 
     std::sort(neighbors.begin(), neighbors.end());
     neighbors.erase(unique(neighbors.begin(), neighbors.end()), neighbors.end());
-}
-
-float CpatchOrganizerS::computeUnit(const Patch::Cpatch& patch) const
-{
-    float unit = 0.0f;
-    for (int i = 0; i < (int)patch.m_images.size(); ++i) unit += m_fm.m_optim.getUnit(patch.m_images[i], patch.m_coord);
-
-    unit /= (int)patch.m_images.size();
-    unit *= m_fm.m_csize;
-
-    return unit;
 }
 
 void CpatchOrganizerS::setScales(Patch::Cpatch& patch) const
