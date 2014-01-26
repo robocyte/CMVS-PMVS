@@ -1287,59 +1287,6 @@ float Cbundle::computeScore2(const Vec4f& coord,
   return bestscore;
 }
 
-float Cbundle::computeScore2(const Vec4f& coord,
-                             const std::vector<int>& images,
-                             const int index) const {
-  std::vector<int> uimages;
-  const int inum = (int)images.size();
-  if (inum < 2)
-    return -1.0f;
-  
-  std::vector<Vec4f> rays;    rays.resize(inum);
-  std::vector<float> scales;  scales.resize(inum);
-  
-  for (int r = 0; r < inum; ++r) {
-    rays[r] = m_pss.m_photos[images[r]].m_center - coord;
-    unitize(rays[r]);
-    
-    scales[r] = 1.0f / m_pss.m_photos[images[r]].getScale(coord, 0);
-  }
-
-  float bestscore = 0.0f;
-  std::vector<int> inout;  inout.resize(inum, 1);
-  inout[index] = 0;
-  uimages.push_back(index);
-
-  for (int t = 1; t < std::min(m_tau, inum); ++t) {
-    // Add the best new image
-    int ansid = -1;
-    float ansscore = -INT_MAX/2;
-    for (int j = 0; j < inum; ++j) {
-      if (inout[j] == 0)
-        continue;
-
-      float score = 0.0f;
-      for (int k = 0; k < (int)uimages.size(); ++k) {
-        const int iid = uimages[k];
-        score += angleScore(rays[j], rays[iid]) * scales[j] * scales[iid];
-      }
-      if (ansscore < score) {
-        ansscore = score;
-        ansid = j;
-      }
-    }
-    
-    if (ansid == -1) {
-      std::cerr << "Impossible 2 in compureScore" << std::endl;      exit (1);
-    }
-    
-    inout[ansid] = 0;
-    uimages.push_back(ansid);
-    bestscore += ansscore;
-  }
-  return bestscore;
-}
-
 void Cbundle::writeVis(void) {
   std::ofstream ofstr;
   char buffer[1024];

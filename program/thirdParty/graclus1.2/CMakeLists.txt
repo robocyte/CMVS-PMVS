@@ -1,5 +1,5 @@
-
 PROJECT(graclus_lib CXX)
+
 FILE(GLOB LIBRARY_FILES_C "metisLib/*.c")
 FILE(GLOB LIBRARY_FILES_H "metisLib/*.h")  
 

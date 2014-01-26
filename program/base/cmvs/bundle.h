@@ -131,8 +131,6 @@ protected:
 
     float computeScore2(const Vec4f& coord, const std::vector<int>& images) const;
     float computeScore2(const Vec4f& coord, const std::vector<int>& images, std::vector<int>& uimages) const;
-    // Enforce the specified image to be inside
-    float computeScore2(const Vec4f& coord, const std::vector<int>& images, const int index) const;
 
     void writeCameraCenters(void);
     void writeVis(void);
